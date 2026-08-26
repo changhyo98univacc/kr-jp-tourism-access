@@ -1,0 +1,9 @@
+data/raw/
+_받은자료/
+.streamlit/secrets.toml
+.env
+**/__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
