@@ -27,6 +27,15 @@ def load():
     return panel, annual, routes, airports, geo
 
 
+@st.cache_data
+def load_grid():
+    """격자는 무거우니 격자 탭을 열 때만 읽는다."""
+    cells = pd.read_csv(D / "grid_cells.csv")
+    acc = pd.read_csv(D / "grid_access.csv")
+    gj = json.load(open(D / "grid_cells.geojson", encoding="utf-8"))
+    return cells, acc, gj
+
+
 panel, annual, routes, airports, geo = load()
 
 METRICS = {
@@ -99,7 +108,8 @@ def route_traces(month):
     return traces
 
 
-tab_map, tab_gap, tab_rel, tab_pref = st.tabs(["지도", "어긋남", "관계", "지역 상세"])
+tab_map, tab_grid, tab_gap, tab_rel, tab_pref = st.tabs(
+    ["지도", "격자", "어긋남", "관계", "지역 상세"])
 
 with tab_map:
     st.caption(hint)
@@ -110,6 +120,51 @@ with tab_map:
         fig.update_layout(legend={"orientation": "h", "y": 0.02, "x": 0.02,
                                   "bgcolor": "rgba(255,255,255,0.75)"})
     st.plotly_chart(fig, width="stretch")
+
+with tab_grid:
+    st.caption("도도부현 47덩어리로는 안 보이는 내부 편차를 10km 격자로 봅니다. "
+               "**지도를 확대해 보세요.** 접근성은 좌표만 있으면 계산되지만, "
+               "방문 데이터는 도도부현이 최소 단위라 여기엔 접근성만 있습니다.")
+    cells, gacc, gj = load_grid()
+    g = gacc[gacc["month"] == month].merge(cells, on="cell_id")
+    g["best_dep_name"] = g["best_dep"].map(DEP_NAME)
+
+    mode = st.radio("색으로 볼 것", ["최단 소요시간", "어느 공항에서 가장 빠른가"],
+                    horizontal=True, label_visibility="collapsed")
+    if mode == "최단 소요시간":
+        hi = float(g["min_minutes"].quantile(0.99))
+        f = px.choropleth_map(
+            g, geojson=gj, locations="cell_id", featureidkey="properties.cell_id",
+            color="min_minutes", color_continuous_scale="Turbo_r",
+            range_color=(float(g["min_minutes"].min()), hi),
+            map_style=MAP_STYLE, center=CENTER, zoom=ZOOM, opacity=0.72,
+            hover_data={"cell_id": False, "min_minutes": ":.0f",
+                        "best_dep_name": True, "best_arr": True},
+            labels={"min_minutes": "분", "best_dep_name": "출발", "best_arr": "도착공항"})
+        f.update_layout(coloraxis_colorbar={"title": "분", "thickness": 12})
+        note = (f"색 범위는 상위 1%를 잘라 {hi:.0f}분까지입니다. "
+                "오가사와라 제도 등 항공편이 닿지 않는 외딴 섬이 최대 21시간까지 나와 "
+                "그대로 두면 본토가 전부 같은 색이 됩니다. 실제 값은 칸에 마우스를 올리면 보입니다.")
+    else:
+        f = px.choropleth_map(
+            g, geojson=gj, locations="cell_id", featureidkey="properties.cell_id",
+            color="best_dep_name", color_discrete_map={v: DEP_COLOR[k] for k, v in DEP_NAME.items()},
+            map_style=MAP_STYLE, center=CENTER, zoom=ZOOM, opacity=0.72,
+            hover_data={"cell_id": False, "min_minutes": ":.0f", "best_arr": True},
+            labels={"best_dep_name": "가장 빠른 출발지", "min_minutes": "분", "best_arr": "도착공항"})
+        share = g["best_dep_name"].value_counts()
+        got = "  ·  ".join(f"{k} {v/len(g)*100:.0f}%" for k, v in share.items())
+        note = (f"**{got}**  —  제주는 한 칸도 최적이 아닙니다. "
+                "일본 대부분에서 김해가 더 가깝기 때문입니다.")
+    f.update_layout(height=640, margin={"l": 0, "r": 0, "t": 0, "b": 0})
+    st.plotly_chart(f, width="stretch")
+    st.caption(note)
+
+    q = st.columns(4)
+    q[0].metric("격자 칸 수", f"{len(g):,}")
+    q[1].metric("가장 빠른 칸", f"{g['min_minutes'].min():.0f}분")
+    q[2].metric("중앙값", f"{g['min_minutes'].median():.0f}분")
+    q[3].metric("본토 상위 1% 경계", f"{g['min_minutes'].quantile(0.99):.0f}분")
 
 with tab_gap:
     st.caption("접근성이 예측한 한국인 비중과 실제의 비율. "
@@ -186,6 +241,12 @@ with st.expander("계산 방법과 한계 — 반드시 함께 읽어주세요")
 
 - **인과가 아닙니다.** 수요가 있어서 노선이 생긴 것일 수 있습니다(역인과).
   이 앱은 어긋남을 보여줄 뿐, 접근성이 방문을 늘린다고 주장하지 않습니다.
+- **한국 안에서 공항까지 가는 시간은 빠져 있습니다.** 출발 4개 공항에 이미 도착해
+  있다고 가정한 국가 단위 접근성이며, 개인 기준이 아닙니다. 서울 거주자에게 김해는
+  실제로 훨씬 멉니다.
+- **격자에는 접근성만 있습니다.** 방문 데이터(국적별 숙박)는 도도부현 47이 최소
+  단위라 격자 해상도로 어긋남을 낼 수 없습니다. 공급은 연속인데 수요는 47덩어리라는
+  이 비대칭 자체가, 공간 단위 선택이 결과를 좌우한다는 사례입니다.
 - **지상이동은 근사값**입니다. 실제 철도·도로가 아니라 직선거리에 60km/h를 가정했습니다.
   산악·도서 지역은 실제보다 가깝게 나옵니다.
 - **대표점은 도도부현 중심점**입니다. 넓은 현은 내부 편차가 큽니다.
