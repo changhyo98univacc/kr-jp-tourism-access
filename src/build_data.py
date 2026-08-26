@@ -72,6 +72,87 @@ def lodging(path: pathlib.Path) -> pd.DataFrame:
     return d.reset_index(drop=True)
 
 
+# ── 경계 원자료 로더 ────────────────────────────────────────────────
+# 원자료 geojson 은 영유권 분쟁 지역을 일본 영역으로 담고 있다. 그중 독도는 한국 영토이며,
+# 나머지도 실효지배·영유권이 다투어지는 곳이다. 어느 쪽도 이 분석(한국발 항공 접근성)에
+# 기여하지 않으므로 — 취항 공항도, 숙박 통계도 없다 — 링 단위로 제외한다.
+# 조용히 지우지 않는다. 무엇을 몇 개 뺐는지 반드시 찍는다.
+DISPUTED = [
+    # 이름,           도도부현코드, lon_min, lon_max, lat_min, lat_max
+    ("독도",              32, 131.80, 131.95, 37.20, 37.30),
+    ("센카쿠 열도",        47, 123.40, 124.60, 25.65, 26.00),
+    ("하보마이 군도",       1, 145.90, 146.30, 43.30, 43.60),
+    ("시코탄",             1, 146.50, 147.00, 43.55, 44.00),
+    ("쿠나시리",           1, 145.30, 146.50, 43.70, 44.70),
+    ("에토로후",           1, 146.80, 149.00, 44.40, 45.60),
+]
+
+
+def load_boundaries(verbose: bool = True) -> dict:
+    """도도부현 경계 geojson. 분쟁 지역 링을 제외하고 무엇을 뺐는지 보고한다."""
+    g = json.load(open(RAW / "japan_pref.geojson", encoding="utf-8"))
+    removed = []
+    for ft in g["features"]:
+        code = int(ft["properties"]["id"])
+        boxes = [d for d in DISPUTED if d[1] == code]
+        if not boxes:
+            continue
+        polys = ([[ft["geometry"]["coordinates"]]] if ft["geometry"]["type"] == "Polygon"
+                 else [[p] for p in ft["geometry"]["coordinates"]])
+        keep = []
+        for wrapped in polys:
+            poly = wrapped[0]
+            xs = [c[0] for c in poly[0]]
+            ys = [c[1] for c in poly[0]]
+            hit = next((d for d in boxes
+                        if d[2] <= min(xs) and max(xs) <= d[3]
+                        and d[4] <= min(ys) and max(ys) <= d[5]), None)
+            if hit:
+                removed.append((hit[0], len(poly[0])))
+            else:
+                keep.append(poly)
+        if not keep:
+            continue
+        ft["geometry"] = {"type": "MultiPolygon", "coordinates": keep}
+    if verbose:
+        if removed:
+            from collections import Counter
+            c = Counter(n for n, _ in removed)
+            print("  [경계] 분쟁 지역 링 제외: "
+                  + ", ".join(f"{k} {v}개" for k, v in c.items()))
+        else:
+            print("  [경계] 제외 대상 없음 — 원자료가 바뀌었는지 확인할 것")
+    return g
+
+
+def capitals() -> pd.DataFrame:
+    """대표점은 현청 소재지다.
+
+    기하학적 무게중심을 쓰면 홋카이도의 대표점이 다이세쓰잔 산악지대가 되어,
+    삿포로(신치토세, 월 600편대)가 아니라 아사히카와(월 20~30편)가 최적 공항이 된다.
+    사람이 가는 곳을 기준으로 삼는다. 좌표가 제 현 안에 있는지 반드시 검증한다.
+    """
+    from matplotlib.path import Path as MplPath
+    d = pd.read_csv(ROOT / "data" / "reference" / "prefecture_capitals.csv")
+    geo = load_boundaries(verbose=False)
+    pts = d[["lon", "lat"]].to_numpy()
+    inside = np.zeros(len(d), dtype=int)
+    for ft in geo["features"]:
+        code = int(ft["properties"]["id"])
+        for ring in _rings(ft["geometry"]):
+            r = np.asarray(ring, float)
+            if len(r) < 4:
+                continue
+            hit = MplPath(r).contains_points(pts)
+            inside[hit & (d["pref_code"].to_numpy() == code)] = 1
+    bad = d[inside == 0]
+    if len(bad):
+        raise ValueError("현청 좌표가 제 도도부현 안에 없다: "
+                         + bad.to_string(index=False))
+    print(f"  [대표점] 현청 소재지 {len(d)}곳 — 전부 자기 도도부현 안에 있음 (검증 통과)")
+    return d
+
+
 def _rings(geom):
     """Polygon/MultiPolygon → 외곽 링 목록."""
     if geom["type"] == "Polygon":
@@ -112,16 +193,18 @@ def _dp(pts, eps):
 
 
 def prefectures(eps: float = 0.01, min_area: float = 5e-4) -> pd.DataFrame:
-    """도도부현 대표점 = 최대 링의 무게중심. 앱용 단순화 경계도 같이 만든다."""
-    g = json.load(open(RAW / "japan_pref.geojson", encoding="utf-8"))
+    """도도부현 대표점 = 현청 소재지. 앱용 단순화 경계도 같이 만든다."""
+    g = load_boundaries()
+    cap = capitals().set_index("pref_code")
     rows, feats = [], []
     for ft in g["features"]:
         rings = _rings(ft["geometry"])
         stats = [_area_centroid(r) for r in rings]
-        area, cx, cy = max(stats, key=lambda s: s[0])
         p = ft["properties"]
-        rows.append({"pref_code": int(p["id"]), "pref_ja": p["nam_ja"], "pref_en": p["nam"],
-                     "lat": cy, "lon": cx})
+        code = int(p["id"])
+        rows.append({"pref_code": code, "pref_ja": p["nam_ja"], "pref_en": p["nam"],
+                     "capital": cap.loc[code, "capital"],
+                     "lat": float(cap.loc[code, "lat"]), "lon": float(cap.loc[code, "lon"])})
         keep = [_dp(r, eps) for r, s in zip(rings, stats) if s[0] >= min_area]
         keep = [k for k in keep if len(k) >= 4] or [_dp(rings[stats.index(max(stats))], eps)]
         feats.append({"type": "Feature",
@@ -187,6 +270,8 @@ def build():
     ap.loc[jp].reset_index().to_csv(OUT / "airports_jp.csv", index=False, encoding="utf-8")
     print(f"panel.csv  {d.shape}  ({d['pref_code'].nunique()}개 도도부현 × {d['month'].nunique()}개월)")
     print(f"routes.csv {rt.shape} | airports_jp.csv {len(jp)}개")
+    print("  ※ panel.csv 를 새로 썼으므로 잔차 열이 없습니다 — "
+          "`python src/analyze.py` 를 반드시 이어서 실행하세요.")
     return d
 
 

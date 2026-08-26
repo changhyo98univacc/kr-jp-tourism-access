@@ -102,7 +102,7 @@ def cell_geojson(cells: pd.DataFrame, dlon: float, dlat: float, path: pathlib.Pa
 
 
 def main():
-    geo = json.load(open(B.RAW / "japan_pref.geojson", encoding="utf-8"))
+    geo = B.load_boundaries()
     ap, routes = B.airports(), B.routes()
     routes = routes.merge(ap[["lat", "lon"]].rename(columns={"lat": "dlat", "lon": "dlon"}),
                           left_on="dep", right_index=True)
