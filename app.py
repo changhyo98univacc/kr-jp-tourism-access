@@ -640,11 +640,40 @@ with tabs[6]:
         st.plotly_chart(viz.style(f, 330, "월별 한국인 숙박자 (인박)", legend=False),
                         width="stretch")
     with g2:
-        f = px.bar(p, x="month", y="min_minutes", labels={"min_minutes": "", "month": "월"})
-        f.update_traces(marker_color=viz.SINGLE,
-                        marker_line={"width": 1.5, "color": viz.SURFACE})
-        st.plotly_chart(viz.style(f, 330, "월별 최단 소요시간 (분·4개 공항)", legend=False),
-                        width="stretch")
+        # 월별 막대는 대부분 무의미했다 — 47개 중 36개가 12개월 내내 같은 값이다.
+        # 최적 공항의 노선이 계절로 열리고 닫히는 7개 현에서만 움직인다.
+        # 그래서 '월별 변동'이 아니라 '주요 지역과의 높이 차이'를 보여준다.
+        REF = ["도쿄", "오사카", "후쿠오카"]
+        sel = row["pref_ko"]
+        f = go.Figure()
+        for n in REF:
+            if n == sel:
+                continue
+            d = panel[panel["pref_ko"] == n].sort_values("month")
+            if d.empty:
+                continue
+            f.add_scatter(x=d["month"], y=d["min_minutes"], mode="lines", name=n,
+                          line={"color": viz.NEUTRAL, "width": 2}, hoverinfo="skip")
+            f.add_annotation(x=12, y=float(d["min_minutes"].iloc[-1]), text=n,
+                             showarrow=False, xanchor="left", xshift=7,
+                             font={"size": 12, "color": viz.MUTED})
+        f.add_scatter(x=p["month"], y=p["min_minutes"], mode="lines+markers", name=sel,
+                      line={"color": viz.SINGLE, "width": 3},
+                      marker={"size": 8, "line": {"width": 1.5, "color": viz.SURFACE}},
+                      hovertemplate="%{x}월 %{y:.0f}분<extra></extra>")
+        f.add_annotation(x=12, y=float(p["min_minutes"].iloc[-1]), text=sel,
+                         showarrow=False, xanchor="left", xshift=7,
+                         font={"size": 12, "color": viz.SINGLE})
+        f.update_layout(xaxis_title="월", yaxis_title="분")
+        f.update_xaxes(dtick=1, range=[0.5, 14.2])
+        st.plotly_chart(viz.style(f, 330, "최단 소요시간 — 주요 3개 지역과 비교",
+                                  legend=False), width="stretch")
+        span = float(p["min_minutes"].max() - p["min_minutes"].min())
+        st.caption(
+            f"선이 평평한 것은 오류가 아닙니다. 최적 공항의 노선이 연중 유지되면 값이 "
+            f"안 바뀝니다 — **47개 중 36개가 그렇습니다.** "
+            + (f"{sel}는 연중 {span:.0f}분 움직입니다(최적 공항의 노선이 계절로 열리고 닫힘)."
+               if span >= 15 else f"{sel}도 연중 거의 일정합니다."))
     if row["uncertain"]:
         st.warning(f"이 지역은 12개월 중 {int(row['uncertain'])}개월이 "
                    "표본오차가 커서 참고값(*)으로 공표된 값입니다.")
