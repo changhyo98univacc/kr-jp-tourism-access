@@ -25,8 +25,28 @@ MAP_STYLE, CENTER, ZOOM = "carto-positron", {"lat": 37.0, "lon": 137.5}, 3.9
 st.set_page_config(page_title="한국–일본 지역 접근성", page_icon="🛫", layout="wide")
 
 
+def _sig(*names) -> tuple:
+    """캐시 키에 파일 지문을 넣는다.
+
+    @st.cache_data 는 함수 코드와 인자로만 키를 만든다. 인자 없이 파일을 읽으면
+    데이터가 새로 빌드돼도 옛 값을 그대로 돌려준다 — 배포 후 실제로 앱이 죽었다.
+    파일의 크기와 수정시각을 인자로 넘겨 내용이 바뀌면 캐시가 갈리게 한다.
+    """
+    out = []
+    for n in names:
+        p = D / n
+        st_ = p.stat()
+        out.append((n, st_.st_size, st_.st_mtime_ns))
+    return tuple(out)
+
+
+MAIN_FILES = ("panel.csv", "annual.csv", "routes.csv", "airports_jp.csv",
+              "panel_by_dep.csv", "airport_pref.csv", "japan_pref_simple.geojson")
+GRID_FILES = ("grid_cells.csv", "grid_by_dep.csv", "grid_cells.geojson")
+
+
 @st.cache_data
-def load():
+def load(sig):
     return (pd.read_csv(D / "panel.csv"), pd.read_csv(D / "annual.csv"),
             pd.read_csv(D / "routes.csv"), pd.read_csv(D / "airports_jp.csv"),
             pd.read_csv(D / "panel_by_dep.csv"), pd.read_csv(D / "airport_pref.csv"),
@@ -34,16 +54,17 @@ def load():
 
 
 @st.cache_data
-def load_grid():
+def load_grid(sig):
     return (pd.read_csv(D / "grid_cells.csv"), pd.read_csv(D / "grid_by_dep.csv"),
             json.load(open(D / "grid_cells.geojson", encoding="utf-8")))
 
 
-panel, annual, routes, airports, panel_by_dep, ap_pref, geo = load()
+panel, annual, routes, airports, panel_by_dep, ap_pref, geo = load(_sig(*MAIN_FILES))
 
 # build_data.py 를 다시 돌리면 panel.csv 의 잔차 열이 지워진다. 알 수 없는 오류로
 # 죽는 대신, 무엇을 해야 하는지 화면에 적고 멈춘다.
-_need = ["korea_share_ratio", "korea_share_pred", "min_minutes", "best_arr", "best_dep"]
+_need = ["korea_share_ratio", "korea_share_pred", "min_minutes",
+         "best_arr", "best_dep", "pref_ko"]
 _missing = [c for c in _need if c not in panel.columns]
 if _missing:
     st.error(f"panel.csv 에 {', '.join(_missing)} 열이 없습니다. "
@@ -212,7 +233,7 @@ with tabs[0]:
 
 # ── 격자 ────────────────────────────────────────────────────────────
 with tabs[1]:
-    cells, grid_by_dep, gj = load_grid()
+    cells, grid_by_dep, gj = load_grid(_sig(*GRID_FILES))
     st.caption(f"도도부현 47덩어리로는 안 보이는 내부 편차를 10km 격자 {len(cells):,}칸으로 "
                "봅니다. **지도를 확대해 보세요.** 접근성은 좌표만 있으면 계산되지만 "
                "방문 데이터는 도도부현이 최소 단위라 여기엔 접근성만 있습니다.")
