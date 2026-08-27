@@ -113,6 +113,7 @@ METRICS = {
     "최단 소요시간": ("min_sel", "seq", "고른 출발공항 중 가장 빨리 닿는 경로의 총 소요시간(분)"),
     "어느 공항에서 가장 빠른가": ("best_dep_name", "cat", "각 지역에 가장 빨리 닿는 출발공항 — 4개 공항의 세력권입니다"),
     "한국인 비중": ("korea_share", "seq", "그 지역 외국인 숙박자 중 한국인이 차지하는 비율"),
+    "한국인 숙박자 수": ("korea", "seq", "절대 규모(인박). 도쿄·오사카가 압도하므로 로그 눈금으로 칠합니다"),
     "접근성 대비 어긋남": ("korea_share_ratio", "div", "1 = 접근성이 예측한 그대로. 1보다 작으면 접근성 대비 덜 옵니다"),
 }
 
@@ -143,6 +144,15 @@ def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
     return viz.style_map(fig, height)
 
 
+def label_trace(df, col, k=5, largest=True, color=None):
+    """극단 몇 곳만 지도에 직접 이름을 적는다. 모든 점에 값을 붙이지 않는다."""
+    d = df.nlargest(k, col) if largest else df.nsmallest(k, col)
+    return go.Scattermap(
+        lon=d["lon"], lat=d["lat"], mode="text", text=d["pref_ja"],
+        textfont={"size": 12, "color": color or viz.INK},
+        textposition="top center", hoverinfo="skip", showlegend=False)
+
+
 def route_traces(rr):
     traces, seen = [], set()
     for dep, g in rr.groupby("dep"):
@@ -171,8 +181,15 @@ with tabs[0]:
     col, kind, hint = METRICS[label]
     st.caption(hint)
     show_routes = st.checkbox("항공 노선 겹쳐 보기", value=True)
-    fig = choropleth(m, col, kind, label,
-                     crange=REF_RANGE if col == "min_sel" else None)
+    if col == "korea":
+        md = m.assign(korea_log=np.log10(m["korea"].clip(lower=1)))
+        fig = choropleth(md, "korea_log", "seq", label)
+        tv = [2, 3, 4, 5, 6]
+        fig.update_coloraxes(colorbar={"tickvals": tv,
+                                       "ticktext": [f"{10**t:,}" for t in tv]})
+    else:
+        fig = choropleth(m, col, kind, label,
+                         crange=REF_RANGE if col == "min_sel" else None)
     if col == "min_sel":
         st.caption(f"색 범위는 **4개 공항 기준 {REF_RANGE[0]:.0f}~{REF_RANGE[1]:.0f}분으로 "
                    "고정**했습니다. 출발공항을 바꿔도 척도가 유지되어 비교할 수 있습니다. "
@@ -182,6 +199,10 @@ with tabs[0]:
             fig.add_trace(t)
     else:
         fig.update_layout(showlegend=kind == "cat")
+    if col in ("min_sel", "korea", "korea_share") and st.checkbox(
+            "상·하위 지역 이름 표시", value=True, key="lbl_map"):
+        fig.add_trace(label_trace(m, col, 5, True))
+        fig.add_trace(label_trace(m, col, 5, False))
     st.plotly_chart(fig, width="stretch")
 
 # ── 격자 ────────────────────────────────────────────────────────────
@@ -232,6 +253,8 @@ with tabs[2]:
             cmin=-2, cmax=2, cmid=0,
             colorbar={"tickvals": [-2, -1, 0, 1, 2],
                       "ticktext": ["¼배", "½배", "예측대로", "2배", "4배"]})
+        fg.add_trace(label_trace(md, "ratio_log", 5, True))
+        fg.add_trace(label_trace(md, "ratio_log", 5, False))
         st.plotly_chart(fg, width="stretch")
     with right:
         cols = ["pref_ja", "min_minutes", "korea", "korea_share_ratio"]
@@ -250,7 +273,12 @@ with tabs[2]:
 with tabs[3]:
     st.caption("가까울수록 한국인 비중이 높습니다. 추세선에서 멀리 떨어진 점이 "
                "'어긋난' 지역입니다. 점 크기는 한국인 숙박자 수입니다.")
-    f = px.scatter(m, x="min_minutes", y="korea_share", size="korea", hover_name="pref_ja",
+    k = st.slider("이름을 표시할 극단 지역 수 (위·아래 각각)", 0, 10, 5, key="lbl_rel")
+    # 모든 점에 이름을 붙이면 읽히지 않는다. 위아래 끝만 고른다.
+    ext = set(m.nlargest(k, "korea_share_ratio")["pref_ja"]) |           set(m.nsmallest(k, "korea_share_ratio")["pref_ja"])
+    ms = m.assign(tag=m["pref_ja"].where(m["pref_ja"].isin(ext), ""))
+    f = px.scatter(ms, x="min_minutes", y="korea_share", size="korea", hover_name="pref_ja",
+                   text="tag",
                    color="korea_share_ratio", color_continuous_scale=viz.DIVERGING,
                    color_continuous_midpoint=1.0, size_max=44, log_y=True,
                    trendline="ols", trendline_options={"log_y": True},
@@ -258,7 +286,9 @@ with tabs[3]:
                    labels={**LABELS, "min_minutes": "최단 소요시간 (분)",
                            "korea_share": "한국인 비중", "korea_share_ratio": "어긋남"})
     f.update_traces(marker={"line": {"width": 1.5, "color": viz.SURFACE}},
-                    selector={"mode": "markers"})
+                    textposition="top center",
+                    textfont={"size": 11, "color": viz.INK_2},
+                    selector=lambda t: t.type == "scatter" and "markers" in (t.mode or ""))
     f.update_yaxes(tickformat=".0%")
     f.update_layout(coloraxis_colorbar={"title": {"text": "어긋남", "side": "right"},
                                         "thickness": 11, "len": 0.72, "outlinewidth": 0})
