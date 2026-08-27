@@ -54,6 +54,12 @@ def load(sig):
 
 
 @st.cache_data
+def load_grid_arr(sig):
+    """격자 칸별 최적 '도착' 공항. 공항 하나의 세력권을 보려면 이게 필요하다."""
+    return pd.read_csv(D / "grid_access.csv")
+
+
+@st.cache_data
 def load_grid(sig):
     return (pd.read_csv(D / "grid_cells.csv"), pd.read_csv(D / "grid_by_dep.csv"),
             json.load(open(D / "grid_cells.geojson", encoding="utf-8")))
@@ -194,6 +200,20 @@ def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
     return viz.style_map(fig, height)
 
 
+@st.cache_data
+def pref_outline(sig):
+    """도도부현 경계를 선 하나로 잇는다. 격자 위에 얹어 행정구역과 대비시킨다."""
+    lons, lats = [], []
+    for ft in geo["features"]:
+        g = ft["geometry"]
+        polys = ([g["coordinates"]] if g["type"] == "Polygon" else g["coordinates"])
+        for poly in polys:
+            ring = poly[0]
+            lons += [c[0] for c in ring] + [None]
+            lats += [c[1] for c in ring] + [None]
+    return lons, lats
+
+
 def label_trace(df, col, k=5, largest=True, color=None):
     """극단 몇 곳만 지도에 직접 이름을 적는다. 모든 점에 값을 붙이지 않는다."""
     d = df.nlargest(k, col) if largest else df.nsmallest(k, col)
@@ -286,8 +306,13 @@ with tabs[1]:
                "봅니다. **지도를 확대해 보세요.** 접근성은 좌표만 있으면 계산되지만 "
                "방문 데이터는 도도부현이 최소 단위라 여기엔 접근성만 있습니다.")
     g = pick_best(grid_by_dep[grid_by_dep["month"] == month], deps).merge(cells, on="cell_id")
-    gmode = st.radio("색으로 볼 것", ["최단 소요시간", "어느 공항에서 가장 빠른가"],
-                     horizontal=True, label_visibility="collapsed")
+    gc = st.columns([2, 1])
+    with gc[0]:
+        gmode = st.radio("색으로 볼 것", ["최단 소요시간", "어느 공항에서 가장 빠른가"],
+                         horizontal=True, label_visibility="collapsed")
+    outline = gc[1].checkbox("도도부현 경계 겹쳐 보기", value=False,
+                             help="접근성은 좌표를 따르고 행정구역은 그렇지 않습니다. "
+                                  "둘이 얼마나 어긋나는지 겹쳐서 봅니다.")
     ghover = {"cell_id": False, "min_sel": ":.0f", "best_dep_name": True}
     if gmode == "최단 소요시간":
         hi = float(g["min_sel"].quantile(0.99))
@@ -307,6 +332,14 @@ with tabs[1]:
         miss = [DEP_NAME[d] for d in deps if DEP_NAME[d] not in share.index]
         if miss:
             note += f"  —  {', '.join(miss)}는 이 달에 한 칸도 최적이 아닙니다."
+    if outline:
+        olon, olat = pref_outline(_sig("japan_pref_simple.geojson"))
+        f.add_trace(go.Scattermap(lon=olon, lat=olat, mode="lines", hoverinfo="skip",
+                                  line={"width": 1, "color": viz.INK_2},
+                                  name="도도부현 경계", opacity=0.55))
+        note += ("  행정구역 경계를 겹쳤습니다. **접근성은 좌표를 따르지 "
+                 "행정구역을 따르지 않습니다** — 같은 현 안에서 색이 갈리는 곳이 "
+                 "도도부현 평균으로는 사라지는 편차입니다.")
     st.plotly_chart(f, width="stretch")
     st.caption(note)
     q = st.columns(4)
@@ -375,8 +408,11 @@ with tabs[4]:
                     horizontal=True, label_visibility="collapsed")
 
     if view == "지역 순위":
-        base = st.radio("기준", ["연간 합계", f"{month}월"], horizontal=True)
-        src = (annual if base == "연간 합계" else m).rename(columns={"korea_share": "share"})
+        # 선택지 문자열에 월을 넣으면 월을 바꿀 때마다 선택이 초기화된다.
+        # 값은 고정해 두고 보이는 글자만 바꾼다.
+        base = st.radio("기준", ["annual", "month"], horizontal=True, key="rank_base",
+                        format_func=lambda v: "연간 합계" if v == "annual" else f"{month}월")
+        src = (annual if base == "annual" else m).rename(columns={"korea_share": "share"})
         topn = st.slider("표시 개수", 5, 47, 20)
         cc = st.columns(2)
         for cont, key, title, fmt in ((cc[0], "korea", "한국인 숙박자 수 (인박)", None),
@@ -537,6 +573,52 @@ with tabs[5]:
     st.dataframe(ar, hide_index=True, width="stretch", height=420,
                  column_config={c: st.column_config.NumberColumn(format="localized")
                                 for c in ("운항편", "여객")})
+
+    st.divider()
+    st.markdown("#### 공항 하나만 골라 보기")
+    st.caption("그 공항이 **가장 빠른 관문이 되는 범위**입니다. 10km 격자에서 "
+               "각 칸의 최적 도착공항을 세어 계산했습니다(4개 출발공항 기준).")
+    ga = load_grid_arr(_sig("grid_access.csv"))
+    cells_a, _, _ = load_grid(_sig(*GRID_FILES))
+    opts = (ar[["IATA", "공항"]].assign(t=lambda x: x["공항"] + " (" + x["IATA"] + ")")
+            .set_index("IATA")["t"].to_dict())
+    codes = sorted(opts, key=lambda c: -int(ar.set_index("IATA").loc[c, "여객"]))
+    picked = st.selectbox("일본 공항", codes, format_func=lambda c: opts[c])
+
+    gm = ga[ga["month"] == month]
+    own = gm[gm["best_arr"] == picked]
+    rr = routes[(routes["month"] == month) & (routes["arr"] == picked)]
+    k = st.columns(4)
+    k[0].metric("세력권", f"{len(own):,}칸", f"전체의 {len(own)/max(len(gm),1)*100:.1f}%")
+    k[1].metric("운항편", f"{int(rr['flights'].sum()):,}편")
+    k[2].metric("여객", f"{int(rr['pax'].sum()):,}명")
+    k[3].metric("한국 출발지", f"{rr['dep'].nunique()}곳")
+
+    if len(own):
+        cov = (own.merge(cells_a[["cell_id", "pref_code"]], on="cell_id")
+                  .merge(NAMES[["pref_code", "pref_label"]], on="pref_code")
+                  .groupby("pref_label").size().rename("칸").reset_index()
+                  .sort_values("칸", ascending=False))
+        c1, c2 = st.columns([2, 3])
+        with c1:
+            st.markdown("**세력권에 든 지역**")
+            st.dataframe(cov.head(12), hide_index=True, width="stretch")
+        with c2:
+            fo = px.bar(cov.head(12).sort_values("칸"), x="칸", y="pref_label",
+                        orientation="h", labels={"칸": "격자 칸 수", "pref_label": ""})
+            fo.update_traces(marker_color=viz.SINGLE,
+                             marker_line={"width": 1.5, "color": viz.SURFACE})
+            fo.update_xaxes(showgrid=True, gridcolor=viz.GRID)
+            fo.update_yaxes(showgrid=False)
+            st.plotly_chart(viz.style(fo, 420, f"{opts[picked]} 세력권", legend=False),
+                            width="stretch")
+        if len(rr):
+            st.caption("한국 출발지별 운항: " + " · ".join(
+                f"{DEP_NAME[d]} {int(v):,}편" for d, v in
+                rr.groupby("dep")["flights"].sum().sort_values(ascending=False).items()))
+    else:
+        st.info(f"{opts[picked]} 는 이 달에 어느 칸에서도 최적 관문이 아닙니다. "
+                "가까운 곳에 더 빠른 공항이 있다는 뜻입니다.")
 
 # ── 지역 상세 ───────────────────────────────────────────────────────
 with tabs[6]:
