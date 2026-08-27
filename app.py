@@ -106,8 +106,16 @@ with st.sidebar:
                    "(모델의 지상이동은 바다를 건넙니다). 그 값은 소요시간이 아니라 "
                    "**직항이 없다는 표시**로 읽어주세요.")
     st.divider()
+    kanji = st.checkbox("지역명에 한자 병기", value=True,
+                        help="축·범례·요약에 「이시카와(石川県)」처럼 함께 적습니다. "
+                             "표와 툴팁에는 항상 병기하며, 지도 위 직접 라벨은 글자가 "
+                             "겹치므로 한글만 씁니다.")
+    st.divider()
     st.caption("접근성이 방문을 **일으킨다**고 주장하지 않습니다. "
                "접근성이 예측하는 것과 실제의 **어긋남**을 보는 도구입니다.")
+
+# 좁은 자리는 토글로 고른다. 툴팁·표는 공간이 있으므로 항상 병기한다.
+NC = "pref_label" if kanji else "pref_ko"
 
 m = panel[panel["month"] == month].merge(
     pick_best(panel_by_dep[panel_by_dep["month"] == month], deps).drop(columns=["month"]),
@@ -118,9 +126,9 @@ st.markdown(f"## {month}월의 일본")
 c = st.columns(4)
 c[0].metric("취항 일본 공항", f"{r_m['arr'].nunique()}곳")
 c[1].metric("운항 편수", f"{int(r_m['flights'].sum()):,}편")
-c[2].metric("가장 가까운 곳", m.loc[m["min_sel"].idxmin(), "pref_ko"],
+c[2].metric("가장 가까운 곳", m.loc[m["min_sel"].idxmin(), NC],
             f"{m['min_sel'].min():.0f}분", delta_color="off")
-c[3].metric("가장 먼 곳", m.loc[m["min_sel"].idxmax(), "pref_ko"],
+c[3].metric("가장 먼 곳", m.loc[m["min_sel"].idxmax(), NC],
             f"{m['min_sel'].max():.0f}분", delta_color="off")
 
 LABELS = {"pref_ko": "지역", "pref_label": "지역", "pref_ja": "일본 표기",
@@ -151,7 +159,7 @@ def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
                   hover_data=HOVER if hover is None else hover,
                   labels={**LABELS, col: label})
     if loc == "pref_code":
-        common["hover_name"] = "pref_ko"
+        common["hover_name"] = "pref_label"
     if kind == "cat":
         fig = px.choropleth_map(df, color=col, color_discrete_map=NAME_COLOR, **common)
     else:
@@ -226,7 +234,8 @@ with tabs[0]:
     else:
         fig.update_layout(showlegend=kind == "cat")
     if col in ("min_sel", "korea", "korea_share") and st.checkbox(
-            "상·하위 지역 이름 표시", value=True, key="lbl_map"):
+            "상·하위 지역 이름 표시 (지도 위에는 겹침 때문에 한글만)",
+            value=True, key="lbl_map"):
         fig.add_trace(label_trace(m, col, 5, True))
         fig.add_trace(label_trace(m, col, 5, False))
     st.plotly_chart(fig, width="stretch")
@@ -303,7 +312,7 @@ with tabs[3]:
     # 모든 점에 이름을 붙이면 읽히지 않는다. 위아래 끝만 고른다.
     ext = set(m.nlargest(k, "korea_share_ratio")["pref_ko"]) |           set(m.nsmallest(k, "korea_share_ratio")["pref_ko"])
     ms = m.assign(tag=m["pref_ko"].where(m["pref_ko"].isin(ext), ""))
-    f = px.scatter(ms, x="min_minutes", y="korea_share", size="korea", hover_name="pref_ko",
+    f = px.scatter(ms, x="min_minutes", y="korea_share", size="korea", hover_name="pref_label",
                    text="tag",
                    color="korea_share_ratio", color_continuous_scale=viz.DIVERGING,
                    color_continuous_midpoint=1.0, size_max=44, log_y=True,
@@ -335,8 +344,8 @@ with tabs[4]:
                                       (cc[1], "share", "외국인 중 한국인 비중", ".0%")):
             with cont:
                 d = src.nlargest(topn, key).sort_values(key)
-                f = px.bar(d, x=key, y="pref_ko", orientation="h",
-                           hover_name="pref_label", labels={key: "", "pref_ko": ""})
+                f = px.bar(d, x=key, y=NC, orientation="h",
+                           hover_name="pref_label", labels={key: "", NC: ""})
                 f.update_traces(marker_color=viz.SINGLE,
                                 marker_line={"width": 1.5, "color": viz.SURFACE})
                 if fmt:
@@ -383,8 +392,8 @@ with tabs[4]:
 
     elif view == "계절 패턴":
         norm = st.radio("보는 법", ["지역별 계절 패턴", "절대 규모"], horizontal=True)
-        piv = panel.pivot(index="pref_ko", columns="month", values="korea")
-        piv = piv.loc[[p for p in annual.sort_values("korea", ascending=False)["pref_ko"]
+        piv = panel.pivot(index=NC, columns="month", values="korea")
+        piv = piv.loc[[p for p in annual.sort_values("korea", ascending=False)[NC]
                        if p in piv.index]]
         if norm == "지역별 계절 패턴":
             f = px.imshow(piv.div(piv.mean(axis=1), axis=0), aspect="auto",
@@ -416,9 +425,9 @@ with tabs[4]:
             ycol = {"한국인 숙박자": "korea", "한국인 비중": "korea_share",
                     "최단 소요시간": "min_minutes"}[what]
             d = panel[panel["pref_label"].isin(picks)]
-            f = px.line(d, x="month", y=ycol, color="pref_ko", markers=True,
+            f = px.line(d, x="month", y=ycol, color=NC, markers=True,
                         color_discrete_sequence=viz.CATEGORICAL,
-                        labels={"month": "월", ycol: "", "pref_ko": ""})
+                        labels={"month": "월", ycol: "", NC: ""})
             f.update_traces(line={"width": 2},
                             marker={"size": 8, "line": {"width": 1.5, "color": viz.SURFACE}})
             if ycol == "korea_share":
@@ -445,7 +454,7 @@ with tabs[5]:
     a = (m.merge(ap_pref[["iata", "pref_code"]]
                  .rename(columns={"iata": "best_arr", "pref_code": "arr_pref"}),
                  left_on="best_arr", right_on="best_arr", how="left")
-         .merge(NAMES.rename(columns={"pref_code": "arr_pref", "pref_ko": "소재지"})[
+         .merge(NAMES.rename(columns={"pref_code": "arr_pref", "pref_label": "소재지"})[
              ["arr_pref", "소재지"]], on="arr_pref", how="left"))
     a["출발"] = a["best_dep"].map(DEP_NAME)
     a["이용 공항"] = a["best_arr"].map(AP_KO) + " (" + a["best_arr"] + ")"
@@ -481,7 +490,7 @@ with tabs[5]:
     ar = (routes[routes["month"] == month].groupby("arr").agg(편=("flights", "sum"), 객=("pax", "sum"),
                                  n=("dep", "nunique")).reset_index()
           .merge(ap_pref[["iata", "pref_code", "name"]].rename(columns={"iata": "arr"}), on="arr")
-          .merge(NAMES.rename(columns={"pref_ko": "소재지"})[["pref_code", "소재지"]],
+          .merge(NAMES.rename(columns={"pref_label": "소재지"})[["pref_code", "소재지"]],
                  on="pref_code"))
     ar["공항"] = ar["arr"].map(AP_KO)
     ar = ar[["arr", "공항", "name", "소재지", "n", "편", "객"]].sort_values("객", ascending=False)
