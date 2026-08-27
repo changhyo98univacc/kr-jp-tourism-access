@@ -152,12 +152,28 @@ METRICS = {
 }
 
 
+# 애니메이션은 12개월을 한 그림에 담는다. 색 범위를 프레임마다 다시 잡으면
+# 변화가 아니라 착시가 보이므로 전 기간 공통 범위로 못박는다.
+ALL = panel.merge(
+    pick_best(panel_by_dep, DEPS)[["pref_code", "month", "min_sel", "best_dep_name"]],
+    on=["pref_code", "month"])
+ALL["korea_log"] = np.log10(ALL["korea"].clip(lower=1))
+ALL["ratio_log"] = np.log2(ALL["korea_share_ratio"].clip(lower=1e-6))
+FIXED = {"min_sel": REF_RANGE,
+         "korea_log": (float(ALL.korea_log.min()), float(ALL.korea_log.max())),
+         "korea_share": (0.0, float(ALL.korea_share.quantile(0.99))),
+         "ratio_log": (-2.0, 2.0)}
+
+
 def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
-               key="properties.pref_code", hover=None, height=620, crange=None):
+               key="properties.pref_code", hover=None, height=620, crange=None,
+               animation=None):
     common = dict(geojson=gj, locations=loc, featureidkey=key, map_style=MAP_STYLE,
                   center=CENTER, zoom=ZOOM, opacity=viz.MAP_OPACITY,
                   hover_data=HOVER if hover is None else hover,
-                  labels={**LABELS, col: label})
+                  labels={**LABELS, col: label, "month": "월"})
+    if animation:
+        common["animation_frame"] = animation
     if loc == "pref_code":
         common["hover_name"] = "pref_label"
     if kind == "cat":
@@ -214,31 +230,54 @@ with tabs[0]:
                      label_visibility="collapsed")
     col, kind, hint = METRICS[label]
     st.caption(hint)
-    show_routes = st.checkbox("항공 노선 겹쳐 보기", value=True)
-    if col == "korea":
+    cc = st.columns([1, 1])
+    anim = cc[0].checkbox("12개월 자동 재생", value=False,
+                          help="12개월을 한 그림에 담아 재생합니다. 색 범위는 전 기간 "
+                               "공통으로 고정해 프레임끼리 비교가 되게 했습니다.")
+    show_routes = cc[1].checkbox("항공 노선 겹쳐 보기", value=True, disabled=anim)
+
+    ACOL = {"korea": "korea_log", "korea_share_ratio": "ratio_log"}
+    if anim:
+        acol = ACOL.get(col, col)
+        fig = choropleth(ALL.sort_values("month"), acol,
+                         "seq" if acol == "korea_log" else kind, label,
+                         crange=FIXED.get(acol), animation="month")
+    elif col == "korea":
         md = m.assign(korea_log=np.log10(m["korea"].clip(lower=1)))
-        fig = choropleth(md, "korea_log", "seq", label)
-        tv = [2, 3, 4, 5, 6]
-        fig.update_coloraxes(colorbar={"tickvals": tv,
-                                       "ticktext": [f"{10**t:,}" for t in tv]})
+        fig = choropleth(md, "korea_log", "seq", label, crange=FIXED["korea_log"])
     else:
         fig = choropleth(m, col, kind, label,
                          crange=REF_RANGE if col == "min_sel" else None)
+
+    if (anim and ACOL.get(col, col) == "korea_log") or (not anim and col == "korea"):
+        tv = [2, 3, 4, 5, 6]
+        fig.update_coloraxes(colorbar={"tickvals": tv,
+                                       "ticktext": [f"{10**v:,}" for v in tv]})
+    if anim and col == "korea_share_ratio":
+        fig.update_coloraxes(colorbar={"tickvals": [-2, -1, 0, 1, 2],
+                                       "ticktext": ["¼배", "½배", "예측대로", "2배", "4배"]})
     if col == "min_sel":
         st.caption(f"색 범위는 **4개 공항 기준 {REF_RANGE[0]:.0f}~{REF_RANGE[1]:.0f}분으로 "
                    "고정**했습니다. 출발공항을 바꿔도 척도가 유지되어 비교할 수 있습니다. "
                    "그보다 먼 곳은 같은 색으로 보이니 마우스를 올려 확인하세요.")
-    if show_routes:
-        for t in route_traces(r_m):
-            fig.add_trace(t)
-    else:
-        fig.update_layout(showlegend=kind == "cat")
-    if col in ("min_sel", "korea", "korea_share") and st.checkbox(
-            "상·하위 지역 이름 표시 (지도 위에는 겹침 때문에 한글만)",
-            value=True, key="lbl_map"):
-        fig.add_trace(label_trace(m, col, 5, True))
-        fig.add_trace(label_trace(m, col, 5, False))
+
+    if not anim:
+        if show_routes:
+            for tr in route_traces(r_m):
+                fig.add_trace(tr)
+        else:
+            fig.update_layout(showlegend=kind == "cat")
+        if col in ("min_sel", "korea", "korea_share") and st.checkbox(
+                "상·하위 지역 이름 표시 (지도 위에는 겹침 때문에 한글만)",
+                value=True, key="lbl_map"):
+            fig.add_trace(label_trace(m, col, 5, True))
+            fig.add_trace(label_trace(m, col, 5, False))
     st.plotly_chart(fig, width="stretch")
+    if anim:
+        st.caption("▶ 를 누르면 1월부터 12월까지 흐릅니다. **색 범위를 12개월 공통으로 "
+                   "고정**했습니다 — 프레임마다 다시 잡으면 없는 변화가 보입니다. "
+                   "재생 중에는 노선 겹쳐보기와 지역 이름 표시를 쓰지 않습니다. "
+                   "격자는 칸이 3,953개라 12프레임이면 브라우저가 감당하지 못해 넣지 않았습니다.")
 
 # ── 격자 ────────────────────────────────────────────────────────────
 with tabs[1]:
