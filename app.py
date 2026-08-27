@@ -120,7 +120,7 @@ METRICS = {
 def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
                key="properties.pref_code", hover=None, height=620, crange=None):
     common = dict(geojson=gj, locations=loc, featureidkey=key, map_style=MAP_STYLE,
-                  center=CENTER, zoom=ZOOM, opacity=0.8,
+                  center=CENTER, zoom=ZOOM, opacity=viz.MAP_OPACITY,
                   hover_data=HOVER if hover is None else hover,
                   labels={**LABELS, col: label})
     if loc == "pref_code":
@@ -137,6 +137,9 @@ def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
                                               "thickness": 11, "len": 0.72,
                                               "outlinewidth": 0, "ticks": "outside",
                                               "tickcolor": viz.AXIS})
+    if loc == "pref_code":
+        # 47개 덩어리는 표면색 얇은 선으로 나눈다. 격자(수천 칸)에는 넣지 않는다 — 선이 데이터를 덮는다.
+        fig.update_traces(marker={"line": {"width": viz.MAP_EDGE_W, "color": viz.SURFACE}})
     return viz.style_map(fig, height)
 
 
@@ -183,10 +186,10 @@ with tabs[0]:
 
 # ── 격자 ────────────────────────────────────────────────────────────
 with tabs[1]:
-    st.caption("도도부현 47덩어리로는 안 보이는 내부 편차를 10km 격자 3,990칸으로 봅니다. "
-               "**지도를 확대해 보세요.** 접근성은 좌표만 있으면 계산되지만 "
-               "방문 데이터는 도도부현이 최소 단위라 여기엔 접근성만 있습니다.")
     cells, grid_by_dep, gj = load_grid()
+    st.caption(f"도도부현 47덩어리로는 안 보이는 내부 편차를 10km 격자 {len(cells):,}칸으로 "
+               "봅니다. **지도를 확대해 보세요.** 접근성은 좌표만 있으면 계산되지만 "
+               "방문 데이터는 도도부현이 최소 단위라 여기엔 접근성만 있습니다.")
     g = pick_best(grid_by_dep[grid_by_dep["month"] == month], deps).merge(cells, on="cell_id")
     gmode = st.radio("색으로 볼 것", ["최단 소요시간", "어느 공항에서 가장 빠른가"],
                      horizontal=True, label_visibility="collapsed")
