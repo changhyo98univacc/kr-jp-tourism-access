@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>한국에서 일본은 얼마나 가까운가 — 원고</title>
+<style>
+@page { size: A4; margin: 18mm 16mm; }
+/* rules/design/deck/_base.css — 발표 슬라이드 뼈대
+ *
+ * **여기를 고치면 모든 스타일이 함께 바뀐다.** 그럴 의도가 아니면 style.css 를 고친다.
+ * 이 파일이 정하는 것은 「어디에 무엇이 놓이는가」이고, 「어떻게 보이는가」는 style.css 다.
+ *
+ * 판형(@page · .slide 크기)은 deck_build.py 가 넣는다. 여기서 다시 정하지 않는다 —
+ * 두 곳에 적으면 갈라진다.
+ *
+ * 마크업 계약 — style.css 가 기대도 되는 구조:
+ *   section.slide[.cover][.l-*]
+ *     div.body                 내용 전부. 세로 가운데 정렬
+ *       h1|h2.headline         `# ` 장 표지 / `## ` 슬라이드 헤드라인 = 그 슬라이드의 주장
+ *       div.content            아래 둘을 담는 그릇. **배치가 만지는 것이 여기다**
+ *         div.main             불릿(ul>li) · 문단(p) · 표(table)
+ *         div.figs             figure > img + figcaption
+ *     footer > span.num        「3 / 14」
+ *
+ * 배치(`@ 배치 2단`)는 아래에서 짜임만 바꾼다. **색과 글자는 건드리지 않는다** —
+ * 그것은 style.css 의 몫이고, 그래서 어느 스타일에 어느 배치를 얹어도 어울린다.
+ * 배치 이름이 여기 한곳에 있는 이유이기도 하다: 스타일마다 다른 이름을 쓰면
+ * 스타일을 갈아끼우는 순간 배치가 전부 깨진다.
+ */
+
+:root {
+  /* 겉모습 토큰 — style.css 가 전부 덮어쓴다. 여기 값은 최후의 보루다 */
+  --fg: #1a1a1a;
+  --bg: #ffffff;
+  --accent: #333333;
+  --muted: #767676;
+  --rule: #d8d8d8;
+
+  --sans: "Pretendard", "Noto Sans KR", "맑은 고딕", "Malgun Gothic",
+          -apple-system, sans-serif;
+  --serif: "Noto Serif KR", "본명조", "바탕", Batang, serif;
+
+  --pad-y: 15mm;
+  --pad-x: 22mm;
+
+  --size-cover: 40pt;
+  --size-headline: 27pt;
+  --size-body: 17pt;
+  --size-small: 11pt;
+  --lh-body: 1.55;
+}
+
+* { box-sizing: border-box; }
+
+.slide {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  padding: var(--pad-y) var(--pad-x);
+  /* 인쇄에서 배경이 빠지면 어두운 스타일이 흰 바탕에 흰 글씨가 된다 */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* ---- 헤드라인 ---------------------------------------------------
+ * 한 슬라이드 = 한 주장. 헤드라인은 장식이 아니라 **그 주장 자체**다.
+ * 그래서 뼈대에서 가장 큰 자리를 차지하고, 줄바꿈을 허용한다(자르지 않는다).
+ */
+.headline {
+  margin: 0 0 6mm;
+  font-size: var(--size-headline);
+  font-weight: 700;
+  line-height: 1.3;
+  word-break: keep-all;              /* 한국어는 어절 단위로 끊는다 */
+}
+
+.slide.cover .body { justify-content: center; text-align: left; }
+.slide.cover .headline { font-size: var(--size-cover); margin-bottom: 8mm; }
+.slide.cover ul { list-style: none; padding: 0; }
+.slide.cover li { font-size: var(--size-small); color: var(--muted); }
+
+/* ---- 내용 그릇 --------------------------------------------------- */
+.slide .content {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4mm;
+}
+.slide .main { min-height: 0; }
+.slide .figs { min-height: 0; display: flex; flex-direction: column; }
+.slide .figs:empty { display: none; }
+
+/* ---- 본문 ------------------------------------------------------- */
+.slide ul { margin: 0; padding-left: 1.1em; }
+.slide li {
+  font-size: var(--size-body);
+  line-height: var(--lh-body);
+  margin-bottom: 2.5mm;
+  word-break: keep-all;
+}
+.slide li::marker { color: var(--accent); }
+.slide p { font-size: var(--size-body); line-height: var(--lh-body); margin: 0 0 3mm; }
+.slide strong { font-weight: 700; }
+.slide code {
+  font-family: "Consolas", "D2Coding", monospace;
+  font-size: .88em;
+  background: rgba(128, 128, 128, .13);
+  padding: .05em .3em;
+  border-radius: 2px;
+}
+
+/* ---- 그림 -------------------------------------------------------
+ * 그림은 슬라이드를 넘치면 안 된다. 넘치는 그림은 인쇄에서 잘리고,
+ * 잘린 것을 발표 직전에야 안다. min-height:0 이 없으면 flex 가 안 줄인다.
+ */
+.slide figure { margin: 4mm 0 0; flex: 1 1 auto; min-height: 0;
+                display: flex; flex-direction: column; align-items: center; }
+.slide figure img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.slide figcaption { margin-top: 2mm; font-size: var(--size-small); color: var(--muted); }
+
+/* ---- 표 --------------------------------------------------------- */
+.slide table { width: 100%; border-collapse: collapse; font-size: calc(var(--size-body) * .82); }
+.slide th, .slide td { padding: 2mm 3mm; text-align: left; border-bottom: 1px solid var(--rule); }
+.slide th { font-weight: 700; border-bottom-width: 2px; border-bottom-color: var(--accent); }
+
+/* ---- 발바닥 ----------------------------------------------------- */
+.slide footer {
+  position: absolute;
+  right: var(--pad-x);
+  bottom: calc(var(--pad-y) * .55);
+  font-size: 9.5pt;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.slide.cover footer { display: none; }
+
+/* ---- 배치 -------------------------------------------------------
+ * `@ 배치 2단` 처럼 슬라이드마다 고른다. 기본값은 `기본`(세로 흐름)이다.
+ *
+ * **왜 배치를 따로 두는가.** 스타일 한 벌을 늘리는 것으로는 짜임이 다양해지지 않는다.
+ * 발표에서 지루해지는 원인은 색이 단조로운 것이 아니라 **모든 슬라이드가 같은 모양**인
+ * 것이다 — 제목 하나에 불릿 다섯 개가 열두 번 반복되는 덱.
+ * 배치는 그 반복을 깨는 장치이고, 색을 건드리지 않으므로 어느 스타일에서도 안전하다.
+ */
+
+/* 2단 — 왼쪽 글, 오른쪽 그림. 그림이 있는 슬라이드의 기본 선택지 */
+.l-two .content { flex-direction: row; align-items: center; gap: 9mm; }
+.l-two .main { flex: 1 1 52%; }
+.l-two .figs { flex: 1 1 48%; height: 100%; justify-content: center; }
+.l-two figure { margin-top: 0; }
+
+/* 전면 — 그림이 슬라이드를 채우고 헤드라인이 그 위에 얹힌다.
+   그림 자체가 주장인 슬라이드에 쓴다 (사진 한 장, 큰 도식) */
+.slide.l-full { padding: 0; }
+.l-full .body { padding: 0; }
+.l-full .content { gap: 0; }
+.l-full .headline {
+  position: absolute;
+  top: var(--pad-y); left: var(--pad-x); right: var(--pad-x);
+  z-index: 2; margin: 0;
+  background: var(--bg);
+  padding: 3mm 5mm;
+  border: none;
+}
+.l-full .figs { position: absolute; inset: 0; }
+.l-full figure { margin: 0; height: 100%; width: 100%; }
+.l-full figure img { width: 100%; height: 100%; object-fit: cover; max-height: none; }
+.l-full figcaption {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: var(--bg); padding: 2mm 5mm; margin: 0;
+}
+
+/* 인용 — 문장 하나를 크게 띄운다. 전환점·핵심 주장·마무리에 쓴다.
+   불릿을 여기 넣지 않는다. 넣는 순간 이 배치의 의미가 없어진다 */
+.l-quote .body { justify-content: center; }
+.l-quote .headline {
+  font-size: calc(var(--size-headline) * 1.4);
+  text-align: center; border: none; padding: 0; margin-bottom: 5mm;
+  line-height: 1.35;
+}
+.l-quote .content { justify-content: center; }
+.l-quote .main { text-align: center; }
+.l-quote ul { list-style: none; padding-left: 0; }
+.l-quote li { padding-left: 0; font-size: var(--size-small); color: var(--muted); }
+.l-quote li::before { display: none; }
+
+/* 강조 — 배경을 강조색으로 뒤집는다. 덱에서 두세 번만 쓴다.
+   자주 쓰면 강조가 아니라 배경이 된다 */
+.slide.l-accent { background: var(--accent); color: var(--bg); }
+.l-accent .headline { color: var(--bg); border-color: var(--bg); }
+.l-accent li::before, .l-accent li::marker { background: var(--bg); color: var(--bg); }
+.l-accent strong { color: var(--bg); text-decoration: underline; text-underline-offset: 3px; }
+.l-accent .figcaption, .l-accent footer .num { color: var(--bg); }
+
+/* 여백 — 글자를 줄이고 숨을 쉰다. 긴 발표에서 청중을 쉬게 하는 자리 */
+.slide.l-air { padding: calc(var(--pad-y) * 1.7) calc(var(--pad-x) * 1.5); }
+.slide.l-air { --size-body: calc(1rem + 3pt); }
+.l-air .headline { margin-bottom: 9mm; }
+.l-air li { margin-bottom: 5mm; }
+
+/* 비교 — 불릿을 좌우 두 열로 나눈다. 항목이 많고 대비가 요점일 때 */
+.l-compare .main ul { column-count: 2; column-gap: 10mm; }
+.l-compare .main li { break-inside: avoid; }
+
+/* 백업 슬라이드는 화면에서만 표시를 달아 둔다. 인쇄물에는 안 나온다 */
+@media screen {
+  .hidden-slide { outline: 3px dashed rgba(200, 120, 0, .8); outline-offset: -3px; }
+}
+
+/* rules/design/deck/학술/style.css — 학회·심사 발표
+ *
+ * 한 벌이다. 여기 값을 부품처럼 뽑아 다른 스타일에 섞지 않는다
+ * (CLAUDE.md 디자인 규약: 「부품을 자유롭게 조합하지 않는다」).
+ * 뼈대는 _base.css 가 이미 씌워져 있다. 여기는 겉모습만 정한다.
+ */
+
+:root {
+  --fg: #16181d;
+  --bg: #ffffff;
+  --accent: #1f3a68;        /* 남색. 밑줄과 쪽번호에만 쓴다 */
+  --muted: #6b7280;
+  --rule: #dcdfe4;
+
+  --pad-y: 15mm;
+  --pad-x: 24mm;
+
+  --size-cover: 38pt;
+  --size-headline: 26pt;
+  --size-body: 17pt;
+  --size-small: 11pt;
+  --lh-body: 1.55;
+}
+
+/* 헤드라인 — 왼쪽 위 고정. 밑줄이 강조의 전부다 */
+.slide .headline {
+  padding-bottom: 4mm;
+  border-bottom: 2.2pt solid var(--accent);
+  letter-spacing: -0.01em;
+}
+
+/* 표지는 밑줄을 걷는다. 표지의 제목은 주장이 아니라 이름이다 */
+.slide.cover { background: var(--bg); }
+.slide.cover .headline {
+  border-bottom: none;
+  padding-bottom: 0;
+  letter-spacing: -0.02em;
+}
+.slide.cover .body::after {
+  content: "";
+  display: block;
+  width: 28mm;
+  height: 2.5pt;
+  background: var(--accent);
+  margin-top: 7mm;
+  order: -1;                /* 제목 위로 올린다 */
+  margin-bottom: 7mm;
+}
+
+/* 불릿 — 점을 없애고 들여쓰기와 색으로만 표시한다.
+   점이 있으면 글자 크기가 커질수록 눈에 거슬린다 */
+.slide ul { list-style: none; padding-left: 0; }
+.slide li { position: relative; padding-left: 7mm; }
+.slide li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .62em;
+  width: 3.6mm;
+  height: 1.2pt;
+  background: var(--accent);
+}
+
+.slide strong { color: var(--accent); }
+
+.slide figcaption { font-style: normal; }
+
+.slide footer .num { color: var(--accent); font-weight: 600; }
+
+
+body.notes { font-family: var(--sans, "맑은 고딕","Malgun Gothic",sans-serif);
+             color:#1a1a1a; line-height:1.6; }
+.script-title { font-size:20pt; margin:0 0 2mm; }
+.script-sub { color:#666; margin:0 0 8mm; font-size:10pt; }
+.note { border-top:1px solid #ddd; padding:4mm 0; page-break-inside:avoid; }
+.note .meta { display:flex; gap:8px; align-items:baseline; font-size:9pt; color:#666; }
+.note .meta .no { font-weight:700; color:#000; min-width:2.4em; }
+.note .meta .t { font-variant-numeric:tabular-nums; }
+.note .meta .kind { margin-left:auto; }
+.note h3 { font-size:13pt; margin:1mm 0 2mm; }
+.note .cue { font-size:9.5pt; color:#777; margin:0 0 2mm; }
+.note .script p { font-size:11.5pt; margin:0 0 1.5mm; }
+.note .empty { color:#b00; font-size:10pt; }
+
+</style>
+</head>
+<body class="notes">
+<h1 class="script-title">한국에서 일본은 얼마나 가까운가</h1><p class="script-sub">캡스톤 최종발표 · 2026-08-27 · 배정 10분</p><article class="note"><div class="meta"><span class="no">1</span><span class="t">0:15 <small>(누적 0:15)</small></span><span class="kind">전이</span></div><h3>한국에서 일본은 얼마나 가까운가</h3><p class="cue">접근성과 실제 방문의 어긋남 지도 · 이창효 · 도시데이터 분석스쿨 캡스톤 · 2026-08-27</p><div class="script"><p>안녕하십니까. 이창효입니다.</p><p>한국에서 일본이 얼마나 가까운지를 재고, 실제로 한국인이 어디에 묵는지와 겹쳐 봤습니다.</p><p>두 지도가 어긋나는 곳을 찾는 발표입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">2</span><span class="t">1:05 <small>(누적 1:20)</small></span><span class="kind">주장</span></div><h3>한국인 수 1위 도쿄, 비중 순위에는 없음</h3><p class="cue">수 1위 도쿄 · 비중 1위 에히메 42% · 외국인 숙박객 중 한국인 비중, 전국 11.5% · 비중 상위 열두 곳에 도쿄·오사카 없음</p><div class="script"><p>먼저 이 그림부터 보겠습니다.</p><p>왼쪽은 한국인 숙박자 수 상위, 오른쪽은 외국인 숙박객 중 한국인이 차지하는 비중 상위입니다.</p><p>왼쪽 1위는 도쿄입니다. 그런데 오른쪽에는 도쿄가 없습니다. 오사카도 없습니다.</p><p>비중 1위는 에히메로 42%, 외국인 열 명 중 넷이 한국인입니다. 전국 평균은 11.5%입니다.</p><p>여기서 비중은 그 지역에 묵은 외국인 전체를 분모에, 한국인을 분자에 둔 값입니다.</p><p>에히메는 시코쿠 서쪽, 마쓰야마가 있는 곳입니다. 인구로는 작은 현입니다.</p><p>규모로 보면 도쿄가 압도적인데, 그 도쿄는 다른 나라 관광객이 더 압도적으로 많은 곳입니다.</p><p>그래서 규모 대신 비중을 봤고, 여기서 물음이 나왔습니다.</p><p>비중이 높은 곳은 한국에서 가까운 곳일까요.</p></div></article>
+<article class="note"><div class="meta"><span class="no">3</span><span class="t">1:00 <small>(누적 2:20)</small></span><span class="kind">방법</span></div><h3>그 달 운항한 노선만으로 최단 경로 계산</h3><p class="cue">수속 165분 + 비행 + 지상이동 60km/h 근사 · 출발 넷 × 도착 서른다섯 중 가장 빠른 하나 · 2025년 140,782편 · 노선 524건</p><div class="script"><p>접근성은 이렇게 쟀습니다.</p><p>출입국 수속 165분을 깔고, 대권거리로 비행시간을 내고,</p><p>공항에서 지역까지 지상이동을 시속 60킬로미터로 근사했습니다.</p><p>출발은 인천·김포·김해·제주 네 곳입니다.</p><p>핵심은 노선을 연간 목록이 아니라 그 달 실제로 뜬 것만 썼다는 점입니다.</p><p>2025년 네 공항에서 일본으로 14만 편이 떴고, 노선은 524건입니다.</p><p>지도의 색은 어느 공항이 그 지역에 가장 빨리 닿는지입니다.</p><p>눈에 띄는 것은 홋카이도가 김해권이라는 점입니다.</p><p>부산이 서울보다 동쪽이라 신치토세까지 더 가깝습니다.</p><p>그리고 경계 원자료가 독도를 시마네현에 넣어 놨습니다. 그 링은 뺐습니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">4</span><span class="t">0:50 <small>(누적 3:10)</small></span><span class="kind">자료</span></div><h3>공급은 연속, 수요는 47덩어리</h3><p class="cue">10km 격자 3,953칸 · 칸마다 최단 소요시간 · 방문 자료의 최소 단위는 도도부현 47개 · 격자에 접근성만 있는 이유 — 비대칭 자체가 발견</p><div class="script"><p>접근성은 좌표만 있으면 계산됩니다.</p><p>그래서 일본 국토를 10킬로미터 격자 3,953칸으로 덮고 칸마다 최단 소요시간을 냈습니다.</p><p>이 그림에서 색은 연속으로 변합니다. 흰 선이 도도부현 경계입니다.</p><p>문제는 방문 자료입니다. 한국인 숙박은 국적별 분해가 도도부현까지만 공표됩니다.</p><p>즉 공급 쪽은 연속인데 수요 쪽은 47개 덩어리입니다.</p><p>그래서 이 격자에는 접근성만 있고 방문은 없습니다.</p><p>저는 이 비대칭을 한계로만 적지 않고 발견으로 적었습니다.</p><p>공간 단위를 어디까지 쪼갤 수 있느냐가 무엇을 볼 수 있느냐를 정하기 때문입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">5</span><span class="t">1:10 <small>(누적 4:20)</small></span><span class="kind">주장</span></div><h3>가까울수록 비중 높음, 다만 인과 아님</h3><p class="cue">로그-선형 + 월 고정효과 · 결정계수 0.377 · 이 값은 파일에 없음 — analyze.py 콘솔값 · 역인과 — 수요가 있어 노선이 생겼을 수 있음</p><div class="script"><p>이제 둘을 겹칩니다.</p><p>가로축은 최단 소요시간, 세로축은 한국인 비중이고 둘 다 로그 축입니다.</p><p>원 크기는 한국인 숙박자 수입니다.</p><p>월 고정효과를 넣은 로그-선형 회귀에서 결정계수는 0.377이 나왔습니다.</p><p>고정효과는 성수기와 비수기가 만드는 전국 공통의 차이를 걷어내려고 넣었습니다.</p><p>여기서 두 가지를 분명히 하겠습니다.</p><p>첫째, 이 값은 지금 어느 결과 파일에도 저장돼 있지 않습니다. analyze.py 가 콘솔에만 찍습니다.</p><p>그래서 발표 전에 다시 돌려 확인한 값입니다.</p><p>둘째, 이것은 인과가 아닙니다. 방향이 반대일 수 있습니다.</p><p>한국인이 많이 가니까 노선이 생겼을 수 있고, 실제로 그쪽이 더 그럴듯한 지역도 있습니다.</p><p>그래서 제가 보려는 것은 이 선이 아니라 선에서 벗어난 점들입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">6</span><span class="t">1:00 <small>(누적 5:20)</small></span><span class="kind">주장</span></div><h3>예측 대비 ¼배에서 4배까지 벌어짐</h3><p class="cue">과소 — 이시카와 0.20 · 오카야마 0.41 · 초과 — 홋카이도 3.66 · 야마구치 3.52 · 히로시마 282분으로 가까우나 예측의 0.48배</p><div class="script"><p>회귀에서 나온 잔차를 지도로 옮긴 것이 이 그림입니다.</p><p>회색은 예측대로, 파랑은 예측보다 적게 온 곳, 빨강은 예측보다 많이 온 곳입니다.</p><p>먼저 들어오는 것은 홋카이도입니다. 예측의 3.66배입니다.</p><p>소요시간으로는 다섯 시간 반이 넘는데도 그렇습니다.</p><p>반대쪽은 이시카와입니다. 예측의 0.20배, 즉 5분의 1입니다. 가나자와가 있는 곳입니다.</p><p>오카야마도 0.41배로 같은 쪽에 있습니다.</p><p>히로시마도 파랑입니다. 282분이면 가까운 편인데 예측의 0.48배에 그칩니다.</p><p>이 파란 곳들이 이 프로젝트가 내놓는 목록입니다.</p><p>왜 안 오는지는 이 자료로 답하지 못합니다. 어디를 봐야 하는지까지가 여기서 나옵니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">7</span><span class="t">0:50 <small>(누적 6:10)</small></span><span class="kind">주장</span></div><h3>가나가와 4.4% — 당일치기로 설명 안 됨</h3><p class="cue">전국 11.5% · 도쿄 7.2% · 가나가와 4.4% · 당일치기는 모든 국적에 동일 — 비율에서 상쇄 · 하코네·가마쿠라에서 자는 쪽은 다른 나라 손님</p><div class="script"><p>여기서 오해를 하나 먼저 끊겠습니다.</p><p>가나가와가 낮은 것은 도쿄에서 자고 당일로 다녀오기 때문 아니냐는 지적이 나옵니다.</p><p>그렇게 설명하면 틀립니다. 당일치기는 한국인만 하는 것이 아닙니다.</p><p>모든 국적이 똑같이 합니다. 그래서 비율을 쓰면 그 효과는 분자와 분모에서 함께 상쇄됩니다.</p><p>그런데도 가나가와는 4.4%입니다.</p><p>전국 평균 11.5%의 절반도 안 되고, 옆에 붙은 도쿄 7.2%보다도 낮습니다.</p><p>즉 하코네나 가마쿠라에서 하룻밤 자는 외국인 중에 한국인 비율이 유난히 낮다는 뜻입니다.</p><p>규모가 아니라 비중을 쓴 덕에 보이는 것입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">8</span><span class="t">1:10 <small>(누적 7:20)</small></span><span class="kind">주장</span></div><h3>대표점 한 점이 어긋남을 두 배로 부풀림</h3><p class="cue">무게중심은 다이세쓰잔 → 최적 공항 아사히카와 · 아사히카와 월 20~30편 vs 신치토세 월 600편대 · 노선 쉬는 달 56분 튐 → 그 달 어긋남 두 배</p><div class="script"><p>이 발표에서 제가 제일 오래 붙잡은 것이 이 그림입니다.</p><p>도도부현을 점 하나로 줄여야 거리를 잽니다. 처음에는 기하학적 무게중심을 썼습니다.</p><p>그런데 홋카이도의 무게중심은 다이세쓰잔 산악지대입니다.</p><p>홋카이도 한가운데 있는 국립공원이고, 사람이 살지 않는 곳입니다.</p><p>그러자 최적 도착공항이 삿포로 신치토세가 아니라 아사히카와로 잡혔습니다.</p><p>신치토세는 한 달에 600편대가 뜨는데 아사히카와는 스무 편 남짓입니다.</p><p>그래서 아사히카와 노선이 쉬는 달마다 홋카이도 소요시간이 56분씩 튀었고,</p><p>그 달의 어긋남이 두 배로 부풀었습니다. 주황색 선입니다.</p><p>대표점을 현청 소재지로 바꾸니 파란 선처럼 12개월 내내 337분으로 평탄해집니다.</p><p>자료도 모형도 그대로인데 결과만 바뀐 것입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">9</span><span class="t">0:45 <small>(누적 8:05)</small></span><span class="kind">주장</span></div><h3>취항 공항 수가 달마다 27~32개로 바뀜</h3><p class="cue">연중 누계 35개, 어느 달에도 35개는 아님 · 계절 운항이 그대로 접근성에 반영됨 · 연간 합계로 집계하면 사라지는 변동</p><div class="script"><p>마지막 발견은 시간 축입니다.</p><p>일본에 취항하는 공항 수를 달마다 세면 27개에서 32개 사이에서 움직입니다.</p><p>연중 누계로는 35개인데, 어느 한 달을 봐도 35개가 다 뜨는 달은 없습니다.</p><p>겨울에 뜨다 여름에 쉬는 노선이 있고 그 반대도 있습니다.</p><p>이 프로젝트가 노선을 연간 목록이 아니라 월별로 쓴 이유가 여기 있습니다.</p><p>연간 합계로 접근성을 계산하면 이 변동은 통째로 사라집니다.</p><p>그리고 앞의 홋카이도처럼, 사라진 변동이 결과를 흔들고 있었는지는 나중에야 알게 됩니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">10</span><span class="t">1:00 <small>(누적 9:05)</small></span><span class="kind">주장</span></div><h3>이 지도가 말하지 않는 것 다섯</h3><p class="cue">인과 아님 — 역인과 가능 · 한국 안에서 공항까지 가는 시간 미포함 · 지상이동은 직선거리 60km/h 근사</p><div class="script"><p>한계를 몰아서 말씀드립니다.</p><p>첫째, 이것은 인과가 아닙니다. 수요가 있어서 노선이 생겼을 가능성을 배제하지 못합니다.</p><p>둘째, 한국 안에서 공항까지 가는 시간이 빠져 있습니다.</p><p>네 공항에 이미 도착해 있다고 가정한 국가 단위 접근성이고,</p><p>서울에 사는 사람에게 김해는 실제로 훨씬 멉니다.</p><p>셋째, 지상이동은 직선거리에 시속 60킬로미터를 가정한 근사입니다. 바다도 그냥 건넙니다.</p><p>넷째, 숙박자는 방문자가 아니고, 통계 자체가 종업원 열 명 이상 시설만 셉니다.</p><p>지방이 과소평가됩니다.</p><p>다섯째, 격자에는 방문이 없습니다. 이건 게으름이 아니라 자료의 최소 단위 문제입니다.</p><p>국적별 숙박이 도도부현까지만 공표되기 때문입니다.</p></div></article>
+<article class="note"><div class="meta"><span class="no">11</span><span class="t">0:45 <small>(누적 9:50)</small></span><span class="kind">마무리</span></div><h3>가까움은 잰 값이 아니라 정한 값</h3><p class="cue">어긋남 지도와 월별 접근성 — 앱에서 지역별로 확인</p><div class="script"><p>정리하겠습니다.</p><p>이 발표에서 숫자 하나만 가져가신다면 결정계수가 아니라 56분이었으면 합니다.</p><p>대표점을 어디에 찍느냐로 홋카이도가 56분씩 흔들렸고, 그것만으로 어긋남이 두 배가 됐습니다.</p><p>자료도 모형도 그대로였습니다.</p><p>가까움은 재서 나오는 값처럼 보이지만,</p><p>어디를 그 지역이라고 부를지 정하는 순간 이미 절반은 정해집니다.</p><p>여러분 분석에서도 공간 단위와 대표점을 먼저 의심해 보시기 바랍니다.</p><p>앱에서는 관심 있는 지역을 골라 어긋남을 직접 보실 수 있습니다.</p><p>감사합니다.</p></div></article>
+<!-- deck_build.py · 아머리 3d1b929+dirty · 스타일 학술 -->
+</body>
+</html>

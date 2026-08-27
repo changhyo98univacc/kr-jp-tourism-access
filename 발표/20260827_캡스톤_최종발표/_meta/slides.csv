@@ -1,0 +1,15 @@
+no,headline,kind,seconds,evidence,status
+1,한국에서 일본은 얼마나 가까운가,전이,15,,확정
+2,"한국인 수 1위 도쿄, 비중 순위에는 없음",주장,65,annual.csv,확정
+3,그 달 운항한 노선만으로 최단 경로 계산,방법,60,routes.csv airports_jp.csv grid_access.csv,확정
+4,"공급은 연속, 수요는 47덩어리",자료,50,grid_cells.csv grid_access.csv,확정
+5,"가까울수록 비중 높음, 다만 인과 아님",주장,70,panel.csv,확정
+6,예측 대비 ¼배에서 4배까지 벌어짐,주장,60,annual.csv claim-02 claim-03 claim-04,확정
+7,가나가와 4.4% — 당일치기로 설명 안 됨,주장,50,annual.csv,확정
+8,대표점 한 점이 어긋남을 두 배로 부풀림,주장,70,panel.csv panel_by_dep.csv,확정
+9,취항 공항 수가 달마다 27~32개로 바뀜,주장,45,routes.csv,확정
+10,이 지도가 말하지 않는 것 다섯,주장,60,panel.csv grid_cells.csv,확정
+11,가까움은 잰 값이 아니라 정한 값,마무리,45,,초안
+12,세력권도 계절을 탄다 — 제주는 석 달만,자료,60,grid_access.csv grid_cells.csv,잘라냄
+13,경계 원자료가 분쟁 지역을 일본 영역으로 담고 있음,자료,60,japan_pref_simple.geojson,잘라냄
+14,접근성 계산식과 가정값,방법,60,panel_by_dep.csv grid_by_dep.csv,잘라냄

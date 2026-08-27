@@ -1,0 +1,10 @@
+id,section,claim,evidence_type,evidence_ref,status,note
+claim-01,README:무엇이 나왔나,"접근성이 한국인 비중을 상당히 설명 (R² 0.38, 월 고정효과 포함)",regression,src/analyze.py:35(콘솔출력),근거부족,"**어느 산출물에도 저장돼 있지 않다.** analyze.py 가 print 로만 찍고 app.py:666 에 문자열로 하드코딩됨. 파이프라인을 다시 돌리면 값이 바뀌어도 앱 문구는 그대로다. 슬라이드에 쓰려면 재실행해 콘솔 값을 확인하고, 가능하면 파일로 저장하도록 고칠 것"
+claim-02,README:무엇이 나왔나,접근성 대비 과소방문 — 이시카와·후쿠시마·고치·미야기·오카야마,figure,annual.csv(ratio 하위),확정,annual.csv 의 ratio(=korea_share_ratio 중앙값) 하위. 앞단은 panel.csv 의 korea_share_ratio
+claim-03,README:무엇이 나왔나,접근성 대비 초과방문 — 홋카이도·야마구치·돗토리·오이타·이바라키,figure,annual.csv(ratio 상위),확정,annual.csv 의 ratio 상위
+claim-04,README:무엇이 나왔나,히로시마는 282분으로 가까운 편이나 한국인 비중이 예측의 0.48배,table,annual.csv:35행,확정,"실제 값 대조 완료 — 広島県 min_minutes=281.9266 → 282분, ratio=0.48350 → 0.48"
+claim-05,README:무엇이 나왔나,취항 일본 공항 수가 월별로 27~32개 사이에서 변동,table,"routes.csv(month, arr)",근거대기,근거 파일은 지정됐으나 수치 재확인 안 함. app.py:133 이 그 달 routes 의 arr.nunique() 로 센다. 슬라이드에 쓰기 전 재계산할 것
+claim-06,README:무엇이 나왔나,"10km 격자 3,953칸 세력권 연평균 인천 63.0·김해 32.4·김포 4.1·제주 0.5%. 제주는 10~12월에만 최적(최대 3.2%)",figure,grid_access.csv(best_dep) · grid_cells.csv,근거대기,계산 가능하나 수치 재확인 안 함. 칸 수 분모는 grid_cells.csv
+claim-07,README:무엇이 나왔나,김해 세력권이 9월에 44.1%까지 상승 (평소 30% 내외),figure,"grid_access.csv(month, best_dep)",근거대기,수치는 계산 가능하나 재확인 안 함. **원인은 README 가 스스로 미확인이라고 밝힘** — 발표에서 원인을 설명하지 말 것. 질의 대상이다
+claim-08,방법:경계 처리,분쟁 지역(독도·센카쿠·북방영토) 링을 경계 원자료에서 제외,code,src/build_data.py:95 load_boundaries(),근거부족,**코드 경로가 일관되지 않는다.** build_data·build_grid 는 load_boundaries() 를 쓰지만 build_scenarios.py:82 는 json.load 로 직접 읽어 우회한다. 발표에서 '제외했다'고 말하려면 이 경로도 확인해야 한다. 실무 영향은 작아 보이나(해당 지역에 공항·숙박 없음) 확인 전에는 단정 금지
+claim-09,방법:대표점 선택,도도부현 대표점을 기하 무게중심이 아닌 현청 소재지로 채택,code,docs/DATA_SOURCES.md:5 · src/build_data.py:138 capitals(),근거대기,"근거 서술은 DATA_SOURCES.md §5 에 있다 — 홋카이도 무게중심이 다이세쓰잔이라 최적 공항이 아사히카와(월 20~30편)로 잡혀 소요시간이 56분씩 튀었고, 현청 소재지로 바꾼 뒤 12개월 337분 평탄. panel.csv 의 홋카이도 min_minutes 로 확인 가능하나 재확인 안 함"
