@@ -42,7 +42,7 @@ def main():
         d = fit(d, t, xs)
     d.to_csv(OUT / "panel.csv", index=False, encoding="utf-8")
 
-    ann = (d.groupby(["pref_code", "pref_ja", "pref_en", "lat", "lon"])
+    ann = (d.groupby(["pref_code", "pref_ja", "pref_ko", "pref_en", "lat", "lon"])
              .agg(korea=("korea", "sum"), foreign_total=("foreign_total", "sum"),
                   min_minutes=("min_minutes", "mean"), gravity=("gravity", "mean"),
                   n_reachable=("n_reachable", "mean"), ratio=("korea_share_ratio", "median"),

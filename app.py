@@ -51,7 +51,11 @@ if _missing:
              "(build_data.py 를 다시 돌리면 이 열들이 지워집니다).")
     st.stop()
 
-NAMES = panel[["pref_code", "pref_ja", "pref_en"]].drop_duplicates()
+# 한국인 청중에게 보여줄 이름. 좁은 축에는 한글만, 표·툴팁에는 한자를 함께 적는다.
+for _d in (panel, annual):
+    _d["pref_label"] = _d["pref_ko"] + "(" + _d["pref_ja"] + ")"
+NAMES = panel[["pref_code", "pref_ja", "pref_ko", "pref_label", "pref_en"]].drop_duplicates()
+AP_KO = dict(zip(airports["iata"], airports["name_ko"]))
 
 
 def pick_best(df: pd.DataFrame, deps: list[str]) -> pd.DataFrame:
@@ -93,16 +97,17 @@ st.markdown(f"## {month}월의 일본")
 c = st.columns(4)
 c[0].metric("취항 일본 공항", f"{r_m['arr'].nunique()}곳")
 c[1].metric("운항 편수", f"{int(r_m['flights'].sum()):,}편")
-c[2].metric("가장 가까운 곳", m.loc[m["min_sel"].idxmin(), "pref_ja"],
+c[2].metric("가장 가까운 곳", m.loc[m["min_sel"].idxmin(), "pref_ko"],
             f"{m['min_sel'].min():.0f}분", delta_color="off")
-c[3].metric("가장 먼 곳", m.loc[m["min_sel"].idxmax(), "pref_ja"],
+c[3].metric("가장 먼 곳", m.loc[m["min_sel"].idxmax(), "pref_ko"],
             f"{m['min_sel'].max():.0f}분", delta_color="off")
 
-LABELS = {"min_sel": "선택 공항 최단(분)", "min_minutes": "4개 공항 최단(분)",
+LABELS = {"pref_ko": "지역", "pref_label": "지역", "pref_ja": "일본 표기",
+          "min_sel": "선택 공항 최단(분)", "min_minutes": "4개 공항 최단(분)",
           "korea": "한국인 숙박(인박)", "korea_share": "한국인 비중",
-          "korea_share_ratio": "어긋남(예측 대비)", "pref_en": "영문명",
+          "korea_share_ratio": "어긋남(예측 대비)", "pref_en": "로마자",
           "best_dep_name": "가장 빠른 출발지", "best_arr": "도착 공항"}
-HOVER = {"pref_code": False, "pref_en": True, "min_sel": ":.0f",
+HOVER = {"pref_code": False, "pref_ja": True, "pref_en": True, "min_sel": ":.0f",
          "korea": ":,", "korea_share": ":.1%", "korea_share_ratio": ":.2f"}
 # 어긋남 탭은 4개 공항 모델이므로 툴팁도 그 값을 보여준다 (선택 공항 값과 섞지 않는다).
 HOVER_MODEL = {**HOVER, "min_sel": False, "min_minutes": ":.0f"}
@@ -125,7 +130,7 @@ def choropleth(df, col, kind, label, *, gj=geo, loc="pref_code",
                   hover_data=HOVER if hover is None else hover,
                   labels={**LABELS, col: label})
     if loc == "pref_code":
-        common["hover_name"] = "pref_ja"
+        common["hover_name"] = "pref_ko"
     if kind == "cat":
         fig = px.choropleth_map(df, color=col, color_discrete_map=NAME_COLOR, **common)
     else:
@@ -148,7 +153,7 @@ def label_trace(df, col, k=5, largest=True, color=None):
     """극단 몇 곳만 지도에 직접 이름을 적는다. 모든 점에 값을 붙이지 않는다."""
     d = df.nlargest(k, col) if largest else df.nsmallest(k, col)
     return go.Scattermap(
-        lon=d["lon"], lat=d["lat"], mode="text", text=d["pref_ja"],
+        lon=d["lon"], lat=d["lat"], mode="text", text=d["pref_ko"],
         textfont={"size": 12, "color": color or viz.INK},
         textposition="top center", hoverinfo="skip", showlegend=False)
 
@@ -167,7 +172,7 @@ def route_traces(rr):
     a = airports[airports["iata"].isin(seen)]
     traces.append(go.Scattermap(lon=a["lon"], lat=a["lat"], mode="markers", name="일본 공항",
                                 marker={"size": 8, "color": viz.INK},
-                                text=a["iata"] + " " + a["name"],
+                                text=a["iata"] + " " + a["name_ko"],
                                 hovertemplate="%{text}<extra></extra>"))
     return traces
 
@@ -257,8 +262,8 @@ with tabs[2]:
         fg.add_trace(label_trace(md, "ratio_log", 5, False))
         st.plotly_chart(fg, width="stretch")
     with right:
-        cols = ["pref_ja", "min_minutes", "korea", "korea_share_ratio"]
-        cfg = {"pref_ja": "지역",
+        cols = ["pref_label", "min_minutes", "korea", "korea_share_ratio"]
+        cfg = {"pref_label": "지역",
                "min_minutes": st.column_config.NumberColumn("소요(분)", format="%.0f"),
                "korea": st.column_config.NumberColumn("한국인", format="localized"),
                "korea_share_ratio": st.column_config.NumberColumn("어긋남", format="%.2f")}
@@ -275,9 +280,9 @@ with tabs[3]:
                "'어긋난' 지역입니다. 점 크기는 한국인 숙박자 수입니다.")
     k = st.slider("이름을 표시할 극단 지역 수 (위·아래 각각)", 0, 10, 5, key="lbl_rel")
     # 모든 점에 이름을 붙이면 읽히지 않는다. 위아래 끝만 고른다.
-    ext = set(m.nlargest(k, "korea_share_ratio")["pref_ja"]) |           set(m.nsmallest(k, "korea_share_ratio")["pref_ja"])
-    ms = m.assign(tag=m["pref_ja"].where(m["pref_ja"].isin(ext), ""))
-    f = px.scatter(ms, x="min_minutes", y="korea_share", size="korea", hover_name="pref_ja",
+    ext = set(m.nlargest(k, "korea_share_ratio")["pref_ko"]) |           set(m.nsmallest(k, "korea_share_ratio")["pref_ko"])
+    ms = m.assign(tag=m["pref_ko"].where(m["pref_ko"].isin(ext), ""))
+    f = px.scatter(ms, x="min_minutes", y="korea_share", size="korea", hover_name="pref_ko",
                    text="tag",
                    color="korea_share_ratio", color_continuous_scale=viz.DIVERGING,
                    color_continuous_midpoint=1.0, size_max=44, log_y=True,
@@ -309,7 +314,8 @@ with tabs[4]:
                                       (cc[1], "share", "외국인 중 한국인 비중", ".0%")):
             with cont:
                 d = src.nlargest(topn, key).sort_values(key)
-                f = px.bar(d, x=key, y="pref_ja", orientation="h", labels={key: "", "pref_ja": ""})
+                f = px.bar(d, x=key, y="pref_ko", orientation="h",
+                           hover_name="pref_label", labels={key: "", "pref_ko": ""})
                 f.update_traces(marker_color=viz.SINGLE,
                                 marker_line={"width": 1.5, "color": viz.SURFACE})
                 if fmt:
@@ -356,8 +362,8 @@ with tabs[4]:
 
     elif view == "계절 패턴":
         norm = st.radio("보는 법", ["지역별 계절 패턴", "절대 규모"], horizontal=True)
-        piv = panel.pivot(index="pref_ja", columns="month", values="korea")
-        piv = piv.loc[[p for p in annual.sort_values("korea", ascending=False)["pref_ja"]
+        piv = panel.pivot(index="pref_ko", columns="month", values="korea")
+        piv = piv.loc[[p for p in annual.sort_values("korea", ascending=False)["pref_ko"]
                        if p in piv.index]]
         if norm == "지역별 계절 패턴":
             f = px.imshow(piv.div(piv.mean(axis=1), axis=0), aspect="auto",
@@ -377,9 +383,9 @@ with tabs[4]:
         st.caption(cap)
 
     else:
-        picks = st.multiselect("비교할 지역 (최대 4곳)", NAMES["pref_ja"].tolist(),
-                               default=[p for p in ("北海道", "福岡県", "広島県", "大分県")
-                                        if p in set(NAMES["pref_ja"])],
+        picks = st.multiselect("비교할 지역 (최대 4곳)", NAMES["pref_label"].tolist(),
+                               default=[p for p in NAMES["pref_label"]
+                                        if p.split("(")[0] in ("홋카이도", "후쿠오카", "히로시마", "오이타")],
                                max_selections=4)
         if not picks:
             st.info("비교할 지역을 하나 이상 골라주세요.")
@@ -388,10 +394,10 @@ with tabs[4]:
                             horizontal=True)
             ycol = {"한국인 숙박자": "korea", "한국인 비중": "korea_share",
                     "최단 소요시간": "min_minutes"}[what]
-            d = panel[panel["pref_ja"].isin(picks)]
-            f = px.line(d, x="month", y=ycol, color="pref_ja", markers=True,
+            d = panel[panel["pref_label"].isin(picks)]
+            f = px.line(d, x="month", y=ycol, color="pref_ko", markers=True,
                         color_discrete_sequence=viz.CATEGORICAL,
-                        labels={"month": "월", ycol: "", "pref_ja": ""})
+                        labels={"month": "월", ycol: "", "pref_ko": ""})
             f.update_traces(line={"width": 2},
                             marker={"size": 8, "line": {"width": 1.5, "color": viz.SURFACE}})
             if ycol == "korea_share":
@@ -418,11 +424,12 @@ with tabs[5]:
     a = (m.merge(ap_pref[["iata", "pref_code"]]
                  .rename(columns={"iata": "best_arr", "pref_code": "arr_pref"}),
                  left_on="best_arr", right_on="best_arr", how="left")
-         .merge(NAMES.rename(columns={"pref_code": "arr_pref", "pref_ja": "소재지"})[
+         .merge(NAMES.rename(columns={"pref_code": "arr_pref", "pref_ko": "소재지"})[
              ["arr_pref", "소재지"]], on="arr_pref", how="left"))
     a["출발"] = a["best_dep"].map(DEP_NAME)
+    a["이용 공항"] = a["best_arr"].map(AP_KO) + " (" + a["best_arr"] + ")"
     tbl = a[~a["pref_code"].isin(have)][
-        ["pref_ja", "min_minutes", "출발", "best_arr", "소재지"]].copy()
+        ["pref_label", "min_minutes", "출발", "이용 공항", "소재지"]].copy()
     tbl.columns = ["한국 취항 공항이 없는 지역", "최단(분)", "출발", "이용 공항", "그 공항 소재지"]
     st.dataframe(tbl.sort_values("최단(분)"), hide_index=True, width="stretch",
                  column_config={"최단(분)": st.column_config.NumberColumn(format="%.0f")})
@@ -453,21 +460,22 @@ with tabs[5]:
     ar = (routes[routes["month"] == month].groupby("arr").agg(편=("flights", "sum"), 객=("pax", "sum"),
                                  n=("dep", "nunique")).reset_index()
           .merge(ap_pref[["iata", "pref_code", "name"]].rename(columns={"iata": "arr"}), on="arr")
-          .merge(NAMES.rename(columns={"pref_ja": "소재지"})[["pref_code", "소재지"]],
+          .merge(NAMES.rename(columns={"pref_ko": "소재지"})[["pref_code", "소재지"]],
                  on="pref_code"))
-    ar = ar[["arr", "name", "소재지", "n", "편", "객"]].sort_values("객", ascending=False)
-    ar.columns = ["IATA", "공항", "소재지", "한국 출발지 수", "운항편", "여객"]
+    ar["공항"] = ar["arr"].map(AP_KO)
+    ar = ar[["arr", "공항", "name", "소재지", "n", "편", "객"]].sort_values("객", ascending=False)
+    ar.columns = ["IATA", "공항", "정식 명칭", "소재지", "한국 출발지 수", "운항편", "여객"]
     st.dataframe(ar, hide_index=True, width="stretch", height=420,
                  column_config={c: st.column_config.NumberColumn(format="localized")
                                 for c in ("운항편", "여객")})
 
 # ── 지역 상세 ───────────────────────────────────────────────────────
 with tabs[6]:
-    names = annual.sort_values("pref_code")["pref_ja"].tolist()
-    pick = st.selectbox("지역", names,
-                        index=names.index("広島県") if "広島県" in names else 0)
-    p = panel[panel["pref_ja"] == pick].sort_values("month")
-    row = annual[annual["pref_ja"] == pick].iloc[0]
+    names = annual.sort_values("pref_code")["pref_label"].tolist()
+    default = next((i for i, v in enumerate(names) if v.startswith("히로시마")), 0)
+    pick = st.selectbox("지역", names, index=default)
+    p = panel[panel["pref_label"] == pick].sort_values("month")
+    row = annual[annual["pref_label"] == pick].iloc[0]
     k = st.columns(4)
     k[0].metric("연간 한국인 숙박", f"{int(row['korea']):,}")
     k[1].metric("한국인 비중", f"{row['korea_share']:.1%}")

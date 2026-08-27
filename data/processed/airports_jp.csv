@@ -1,36 +1,36 @@
-iata,name,country,lat,lon
-AKJ,Asahikawa Airport,JP,43.670799,142.447006
-AOJ,Aomori Airport,JP,40.733777,140.689477
-CTS,New Chitose Airport,JP,42.774753,141.690414
-FSZ,Mount Fuji Shizuoka Airport,JP,34.795022,138.190976
-FUK,Fukuoka Airport,JP,33.585899353027344,130.4510040283203
-HIJ,Hiroshima Airport,JP,34.4361,132.919006
-HKD,Hakodate Airport,JP,41.77,140.822006
-HND,Tokyo Haneda International Airport,JP,35.549678,139.786958
-HSG,Kyushu Saga International Airport,JP,33.1497,130.302002
-IBR,Ibaraki Airport,JP,36.181456,140.414434
-ISG,New Ishigaki Airport,JP,24.396389,124.245
-KIJ,Niigata Airport,JP,37.954166,139.112189
-KIX,Kansai International Airport,JP,34.427299,135.244003
-KKJ,Kitakyushu Airport,JP,33.845901,131.035004
-KMI,Miyazaki Airport,JP,31.877199,131.449005
-KMJ,Kumamoto Airport,JP,32.837299,130.854996
-KMQ,Komatsu Airport / JASDF Komatsu Air Base,JP,36.393407,136.406895
-KOJ,Kagoshima Airport,JP,31.8034,130.718994
-MYJ,Matsuyama Airport,JP,33.826893,132.700114
-NGO,Chubu Centrair International Airport,JP,34.858398,136.804993
-NGS,Nagasaki Airport,JP,32.916901,129.914001
-NRT,Narita International Airport,JP,35.76858,140.388714
-OBO,Tokachi-Obihiro Airport,JP,42.7332992554,143.216995239
-OIT,Oita Airport,JP,33.479400634799994,131.736999512
-OKA,Naha International Airport,JP,26.192437,127.639804
-OKJ,Okayama Momotaro Airport,JP,34.756901,133.854996
-SDJ,Sendai Airport,JP,38.139702,140.917007
-SHI,Shimojishima Airport,JP,24.8267,125.144997
-SHM,Nanki Shirahama Airport,JP,33.6622009277,135.363998413
-TAK,Takamatsu Airport,JP,34.214963,134.015454
-TKS,Tokushima Awaodori Airport / JMSDF Tokushima Air Base,JP,34.132559,134.607816
-TOY,Toyama Kitokito Airport,JP,36.648416,137.187359
-UBJ,Yamaguchi Ube Airport,JP,33.93,131.279007
-UKB,Kobe Airport,JP,34.632801,135.223999
-YGJ,Yonago Kitaro Airport / JASDF Miho Air Base,JP,35.492199,133.235992
+iata,name,country,lat,lon,name_ko_raw,name_ko
+AKJ,Asahikawa Airport,JP,43.670799,142.447006,아사이까와,아사히카와
+AOJ,Aomori Airport,JP,40.733777,140.689477,아오모리,아오모리
+CTS,New Chitose Airport,JP,42.774753,141.690414,삿보로(치토세),삿포로(신치토세)
+FSZ,Mount Fuji Shizuoka Airport,JP,34.795022,138.190976,시즈오카,시즈오카(후지산)
+FUK,Fukuoka Airport,JP,33.585899353027344,130.4510040283203,후쿠오카,후쿠오카
+HIJ,Hiroshima Airport,JP,34.4361,132.919006,히로시마,히로시마
+HKD,Hakodate Airport,JP,41.77,140.822006,하꼬다데,하코다테
+HND,Tokyo Haneda International Airport,JP,35.549678,139.786958,도쿄 하네다,도쿄(하네다)
+HSG,Kyushu Saga International Airport,JP,33.1497,130.302002,사가,사가
+IBR,Ibaraki Airport,JP,36.181456,140.414434,이바라키,이바라키
+ISG,New Ishigaki Airport,JP,24.396389,124.245,이시가키,이시가키
+KIJ,Niigata Airport,JP,37.954166,139.112189,니이가타,니가타
+KIX,Kansai International Airport,JP,34.427299,135.244003,간사이,오사카(간사이)
+KKJ,Kitakyushu Airport,JP,33.845901,131.035004,키타큐슈,기타큐슈
+KMI,Miyazaki Airport,JP,31.877199,131.449005,미와사키,미야자키
+KMJ,Kumamoto Airport,JP,32.837299,130.854996,구마모도,구마모토
+KMQ,Komatsu Airport / JASDF Komatsu Air Base,JP,36.393407,136.406895,고마스,고마쓰
+KOJ,Kagoshima Airport,JP,31.8034,130.718994,카고시마,가고시마
+MYJ,Matsuyama Airport,JP,33.826893,132.700114,마즈야마,마쓰야마
+NGO,Chubu Centrair International Airport,JP,34.858398,136.804993,나고야,나고야(주부)
+NGS,Nagasaki Airport,JP,32.916901,129.914001,나가사키,나가사키
+NRT,Narita International Airport,JP,35.76858,140.388714,도쿄 나리타,도쿄(나리타)
+OBO,Tokachi-Obihiro Airport,JP,42.7332992554,143.216995239,오비히로,오비히로
+OIT,Oita Airport,JP,33.479400634799994,131.736999512,오이다,오이타
+OKA,Naha International Airport,JP,26.192437,127.639804,오끼나와,오키나와(나하)
+OKJ,Okayama Momotaro Airport,JP,34.756901,133.854996,오까야마,오카야마
+SDJ,Sendai Airport,JP,38.139702,140.917007,센다이,센다이
+SHI,Shimojishima Airport,JP,24.8267,125.144997,시모지시마,시모지시마
+SHM,Nanki Shirahama Airport,JP,33.6622009277,135.363998413,시라하마,시라하마
+TAK,Takamatsu Airport,JP,34.214963,134.015454,다가마스,다카마쓰
+TKS,Tokushima Awaodori Airport / JMSDF Tokushima Air Base,JP,34.132559,134.607816,도쿠시마,도쿠시마
+TOY,Toyama Kitokito Airport,JP,36.648416,137.187359,도야마,도야마
+UBJ,Yamaguchi Ube Airport,JP,33.93,131.279007,우베,우베(야마구치)
+UKB,Kobe Airport,JP,34.632801,135.223999,고베,고베
+YGJ,Yonago Kitaro Airport / JASDF Miho Air Base,JP,35.492199,133.235992,요나고,요나고

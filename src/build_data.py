@@ -27,7 +27,9 @@ def routes() -> pd.DataFrame:
         df = df[df["from_raw"] != "전체 합계"].copy()
         df["dep"], df["arr"] = DEP[m.group(1)], df["to_raw"].map(_code)
         df["month"] = int(m.group(2))
-        out.append(df[["dep", "arr", "month", "flights", "pax"]])
+        # 원자료가 이미 한국어 공항명을 갖고 있다("후쿠오카(FUK)"). 버리지 않는다.
+        df["arr_ko"] = df["to_raw"].astype(str).str.replace(r"\s*\([A-Z]{3}\)$", "", regex=True).str.strip()
+        out.append(df[["dep", "arr", "arr_ko", "month", "flights", "pax"]])
     r = pd.concat(out, ignore_index=True)
     r = r[r["arr"].isin(ap.index[ap["country"] == "JP"])]
     for c in ("flights", "pax"):
@@ -203,7 +205,9 @@ def prefectures(eps: float = 0.01, min_area: float = 5e-4) -> pd.DataFrame:
         p = ft["properties"]
         code = int(p["id"])
         rows.append({"pref_code": code, "pref_ja": p["nam_ja"], "pref_en": p["nam"],
+                     "pref_ko": cap.loc[code, "pref_ko"],
                      "capital": cap.loc[code, "capital"],
+                     "capital_ko": cap.loc[code, "capital_ko"],
                      "lat": float(cap.loc[code, "lat"]), "lon": float(cap.loc[code, "lon"])})
         keep = [_dp(r, eps) for r, s in zip(rings, stats) if s[0] >= min_area]
         keep = [k for k in keep if len(k) >= 4] or [_dp(rings[stats.index(max(stats))], eps)]
@@ -267,7 +271,21 @@ def build():
     d["korea_share"] = d["korea"] / d["foreign_total"]
     d.to_csv(OUT / "panel.csv", index=False, encoding="utf-8")
     rt.to_csv(OUT / "routes.csv", index=False, encoding="utf-8")  # 앱에서 노선을 그리려면 좌표가 필요하다
-    ap.loc[jp].reset_index().to_csv(OUT / "airports_jp.csv", index=False, encoding="utf-8")
+    apj = ap.loc[jp].reset_index()
+    if "arr_ko" in rt.columns:
+        src = rt.groupby("arr")["arr_ko"].agg(lambda s: s.mode().iat[0]).rename("name_ko_raw")
+        apj = apj.merge(src, left_on="iata", right_index=True, how="left")
+    # 원자료의 한국어 표기는 비표준이 많고 오기도 있다("미와사키"=미야자키).
+    # 표준 표기로 바꿔 쓰되 원자료 값도 함께 남겨 추적 가능하게 한다.
+    fix = pd.read_csv(ROOT / "data" / "reference" / "airport_names_ko.csv")
+    apj = apj.merge(fix[["iata", "name_ko"]], on="iata", how="left")
+    miss = apj[apj["name_ko"].isna()]["iata"].tolist()
+    if miss:
+        print(f"  [주의] 표준 한국어명 없는 공항 {miss} — 원자료 표기를 그대로 씁니다")
+        apj["name_ko"] = apj["name_ko"].fillna(apj.get("name_ko_raw"))
+    changed = int((apj["name_ko"] != apj.get("name_ko_raw")).sum())
+    print(f"  공항 한국어명: {len(apj)}개 중 {changed}개를 표준 표기로 교정")
+    apj.to_csv(OUT / "airports_jp.csv", index=False, encoding="utf-8")
     print(f"panel.csv  {d.shape}  ({d['pref_code'].nunique()}개 도도부현 × {d['month'].nunique()}개월)")
     print(f"routes.csv {rt.shape} | airports_jp.csv {len(jp)}개")
     print("  ※ panel.csv 를 새로 썼으므로 잔차 열이 없습니다 — "
